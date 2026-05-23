@@ -550,7 +550,7 @@ def get_blacklisted_pair_sessions() -> set:
     return {
         (e['symbol'], e['session'])
         for e in entries
-        if e.get('blacklist_type') == 'PAIR_SESSION' and e.get('session')
+        if e.get('blacklist_type') == 'PAIR_SESSION' and e.get('session', '') != ''
     }
 
 

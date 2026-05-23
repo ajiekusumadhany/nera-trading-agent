@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 DB_PATH = '/home/ajiekusumadhany.me/public_html/nera-quant/trades.db'
 
 # Hanya catat PnL dari tanggal ini ke depan (2026-05-23 04:00 WIB = 2026-05-22 21:00:00 UTC)
-SYNC_START_TS = 1779483600000
+SYNC_START_TS = 1779500940000
 _db_lock = threading.Lock()
 
 
@@ -142,16 +142,17 @@ CREATE TABLE IF NOT EXISTS setup_stats (
 
 -- ── Feature 3: Standing Orders / Auto-Blacklist ───────────────────────
 CREATE TABLE IF NOT EXISTS auto_blacklist (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol          TEXT    NOT NULL,
     reason          TEXT    NOT NULL,   -- e.g. "win_rate=0.20 over 15 trades"
     blacklist_type  TEXT    NOT NULL,   -- 'PAIR' | 'PAIR_SESSION'
-    session         TEXT,               -- NULL for full pair blacklist
+    session         TEXT    DEFAULT '',  -- '' for full pair blacklist
     win_rate        REAL,
     total_trades    INTEGER,
     created_at      TEXT    NOT NULL,
     expires_at      TEXT,               -- NULL = permanent until manually cleared
     active          INTEGER DEFAULT 1,  -- 1=active, 0=cleared
-    PRIMARY KEY (symbol, blacklist_type, COALESCE(session, ''))
+    UNIQUE (symbol, blacklist_type, session)
 );
 
 -- ── Feature 4: L3 Meta-Feedback column (added via ALTER if missing) ───
@@ -1031,6 +1032,8 @@ def set_auto_blacklist(
     """Insert or update an auto-blacklist entry."""
     from datetime import datetime, timezone
     created_at = datetime.now(timezone.utc).isoformat()
+    # Normalise session: None → '' so UNIQUE(symbol, blacklist_type, session) works
+    session_key = session or ''
     with _db_lock:
         conn = get_conn()
         try:
@@ -1039,16 +1042,16 @@ def set_auto_blacklist(
                     (symbol, reason, blacklist_type, session, win_rate, total_trades,
                      created_at, expires_at, active)
                 VALUES (?,?,?,?,?,?,?,?,1)
-                ON CONFLICT(symbol, blacklist_type, COALESCE(session, '')) DO UPDATE SET
+                ON CONFLICT(symbol, blacklist_type, session) DO UPDATE SET
                     reason=excluded.reason,
                     win_rate=excluded.win_rate,
                     total_trades=excluded.total_trades,
                     created_at=excluded.created_at,
                     expires_at=excluded.expires_at,
                     active=1
-            """, (symbol, reason, blacklist_type, session, win_rate, total_trades, created_at, expires_at))
+            """, (symbol, reason, blacklist_type, session_key, win_rate, total_trades, created_at, expires_at))
             conn.commit()
-            logger.info(f"[Blacklist] Set: {symbol} type={blacklist_type} session={session} | {reason}")
+            logger.info(f"[Blacklist] Set: {symbol} type={blacklist_type} session={session_key} | {reason}")
         except Exception as e:
             logger.error(f"[Blacklist] set_auto_blacklist error: {e}")
         finally:
@@ -1073,15 +1076,16 @@ def get_active_blacklist() -> List[Dict]:
 
 def clear_blacklist_entry(symbol: str, blacklist_type: str = 'PAIR', session: str = None):
     """Deactivate a blacklist entry (soft delete)."""
+    session_key = session or ''
     with _db_lock:
         conn = get_conn()
         try:
             conn.execute(
-                "UPDATE auto_blacklist SET active=0 WHERE symbol=? AND blacklist_type=? AND COALESCE(session,'')=COALESCE(?,'') ",
-                (symbol, blacklist_type, session)
+                "UPDATE auto_blacklist SET active=0 WHERE symbol=? AND blacklist_type=? AND session=?",
+                (symbol, blacklist_type, session_key)
             )
             conn.commit()
-            logger.info(f"[Blacklist] Cleared: {symbol} type={blacklist_type} session={session}")
+            logger.info(f"[Blacklist] Cleared: {symbol} type={blacklist_type} session={session_key}")
         except Exception as e:
             logger.error(f"[Blacklist] clear_blacklist_entry error: {e}")
         finally:
