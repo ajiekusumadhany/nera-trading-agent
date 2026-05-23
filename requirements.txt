@@ -8,3 +8,8 @@ asyncio-throttle==1.0.2
 python-telegram-bot==21.3
 schedule==1.2.2
 colorlog==6.8.2
+google-genai==1.16.0
+Pillow==10.4.0
+mplfinance==0.12.10b0
+ntscraper==0.3.8
+matplotlib==3.9.2

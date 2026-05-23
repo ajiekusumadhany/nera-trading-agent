@@ -73,7 +73,7 @@ class TelegramNotifier:
             return self._send_photo(chart_path, message)
         return self._send_message(message)
 
-    def send_trade_executed(self, signal, trade) -> bool:
+    def send_trade_executed(self, signal, trade, chart_path: str = None) -> bool:
         """
         Kirim notifikasi setelah order berhasil dieksekusi.
         Tampilkan detail order: leverage, quantity, margin, TP/SL order ID.
@@ -111,6 +111,8 @@ class TelegramNotifier:
                 f"🕐 `{timestamp}`\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━"
             )
+            if chart_path:
+                return self._send_photo(chart_path, message)
             return self._send_message(message)
         else:
             # Order gagal — log saja, tidak perlu notif Telegram

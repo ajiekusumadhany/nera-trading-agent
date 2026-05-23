@@ -24,14 +24,20 @@ def generate_chart(symbol: str, timeframe: str, entry_price: float, tp: float, s
         
         filename = f"/tmp/{symbol}_{timeframe}_chart.png"
         
-        fill_between = None
+        plot_kwargs = dict(
+            type='candle',
+            style='charles',
+            addplot=apdicts,
+            volume=True,
+            savefig=filename,
+            title=f"{symbol} - {timeframe} Setup",
+        )
+        # Only pass fill_between when we actually have OB levels — mplfinance
+        # rejects None for this kwarg and will raise a validation error.
         if ob_top and ob_bot:
-            fill_between = dict(y1=ob_bot, y2=ob_top, color='purple', alpha=0.2)
+            plot_kwargs['fill_between'] = dict(y1=ob_bot, y2=ob_top, color='purple', alpha=0.2)
             
-        mpf.plot(df, type='candle', style='charles', addplot=apdicts, 
-                 volume=True, savefig=filename,
-                 title=f"{symbol} - {timeframe} Setup",
-                 fill_between=fill_between)
+        mpf.plot(df, **plot_kwargs)
                  
         return filename
     except Exception as e:

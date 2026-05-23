@@ -7,6 +7,7 @@ Jalankan: python3 main.py
 import logging
 import sys
 import threading
+import time
 import colorlog
 from scanner import NeraScanner
 from api_server import start_server
@@ -42,6 +43,25 @@ def setup_logging():
     logging.getLogger('requests').setLevel(logging.WARNING)
 
 
+def _run_weekly_retrospective_loop():
+    """
+    Background thread: jalankan AI weekly retrospective setiap 7 hari.
+    Pertama kali dijalankan setelah 7 hari uptime, lalu setiap 7 hari berikutnya.
+    """
+    logger = logging.getLogger('retrospective')
+    SEVEN_DAYS = 7 * 24 * 3600
+    logger.info("[Retrospective] Scheduler started — akan berjalan setiap 7 hari.")
+    time.sleep(SEVEN_DAYS)
+    while True:
+        try:
+            from analytics_engine import run_weekly_ai_retrospective
+            logger.info("[Retrospective] Menjalankan AI Weekly Retrospective...")
+            run_weekly_ai_retrospective()
+        except Exception as e:
+            logger.error(f"[Retrospective] Error: {e}")
+        time.sleep(SEVEN_DAYS)
+
+
 def main():
     setup_logging()
     logger = logging.getLogger(__name__)
@@ -65,6 +85,11 @@ def main():
     db_thread = threading.Thread(target=database.run_sync_loop, daemon=True)
     db_thread.start()
     logger.info("Database sync: started")
+
+    # Start weekly AI retrospective scheduler
+    retro_thread = threading.Thread(target=_run_weekly_retrospective_loop, daemon=True)
+    retro_thread.start()
+    logger.info("Weekly retrospective scheduler: started")
 
     try:
         scanner = NeraScanner()

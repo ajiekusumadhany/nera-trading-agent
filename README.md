@@ -18,440 +18,119 @@
 [![Binance](https://img.shields.io/badge/Binance-Futures-F0B90B?style=for-the-badge&logo=binance&logoColor=black)](https://testnet.binancefuture.com)
 [![Gemini AI](https://img.shields.io/badge/Gemini_2.5_Pro-CIO_Agent-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 [![Telegram](https://img.shields.io/badge/Telegram-Notifier-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://core.telegram.org/bots)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-
-**🇬🇧 English** | **🇮🇩 Bahasa Indonesia**
 
 </div>
 
 ---
 
-## 📋 Table of Contents / Daftar Isi
+## 📋 Table of Contents
 
-- [🌐 Overview / Gambaran Umum](#-overview--gambaran-umum)
-- [🏗️ System Architecture / Arsitektur Sistem](#️-system-architecture--arsitektur-sistem)
-- [🔄 Main Flowchart / Flowchart Utama](#-main-flowchart--flowchart-utama)
-- [🧠 Core Engines / Mesin Utama](#-core-engines--mesin-utama)
-  - [Monte Carlo Engine](#-monte-carlo-probability-engine)
-  - [SMC Intelligence](#-smart-money-concepts-smc-intelligence)
-  - [Decision Intelligence System](#-decision-intelligence-system)
-  - [Risk Management](#️-risk-management-pipeline)
-- [🛡️ Safety Features / Fitur Keamanan](#️-safety-features--fitur-keamanan)
-- [📊 Technical Indicators](#-technical-indicators)
-- [📁 File Structure / Struktur File](#-file-structure--struktur-file)
-- [⚙️ Configuration / Konfigurasi](#️-configuration--konfigurasi)
-- [🚀 Installation & Usage / Instalasi & Penggunaan](#-installation--usage--instalasi--penggunaan)
-- [📡 Dashboard & Notifications](#-dashboard--notifications)
-- [🗄️ Database Schema](#️-database-schema)
-- [🤖 AI Integration (Gemini 2.5 Pro)](#-ai-integration-gemini-25-pro)
-- [🔴 Switch to Live Trading / Beralih ke Real Trade](#-switch-to-live-trading--beralih-ke-real-trade)
+- [Overview](#-overview)
+- [Architecture](#-architecture)
+- [Core Engines](#-core-engines)
+- [Safety Features](#-safety-features)
+- [Technical Indicators](#-technical-indicators)
+- [File Structure](#-file-structure)
+- [Configuration](#-configuration)
+- [Installation & Usage](#-installation--usage)
+- [Dashboard & Notifications](#-dashboard--notifications)
+- [Database Schema](#-database-schema)
+- [AI Integration](#-ai-integration-gemini-25-pro)
+- [Bug Fixes & Changelog](#-bug-fixes--changelog)
 
 ---
 
-## 🌐 Overview / Gambaran Umum
+## 🌐 Overview
 
-### 🇬🇧 English
-**NERA QUANT** is an autonomous algorithmic trading AI system built for **Binance Futures**. It continuously scans the **Top 50 USDT perpetual pairs** and combines probabilistic Monte Carlo simulation with **Smart Money Concepts (SMC)** to generate high-confidence trading signals. When a signal meets strict multi-layer thresholds, the system automatically executes bracket orders (Entry + TP + SL) and actively manages open positions in real time.
+**NERA QUANT** adalah sistem trading algoritmik AI otonom untuk **Binance Futures**. Sistem ini secara kontinu memindai **Top 50 pair USDT perpetual** dan menggabungkan simulasi Monte Carlo probabilistik dengan **Smart Money Concepts (SMC)** untuk menghasilkan sinyal trading confidence tinggi.
 
-The system also integrates **Gemini 2.5 Pro** as a CIO Agent that reviews charts before any trade is approved, making it a fully autonomous, AI-supervised trading bot.
-
-### 🇮🇩 Bahasa Indonesia
-**NERA QUANT** adalah sistem trading algoritmik AI otonom yang dibangun untuk **Binance Futures**. Sistem ini secara kontinu memindai **Top 50 pair USDT perpetual** dan menggabungkan simulasi Monte Carlo probabilistik dengan **Smart Money Concepts (SMC)** untuk menghasilkan sinyal trading dengan confidence tinggi. Ketika sinyal memenuhi threshold multi-layer yang ketat, sistem secara otomatis mengeksekusi bracket order (Entry + TP + SL) dan mengelola posisi terbuka secara real-time.
-
-Sistem ini juga mengintegrasikan **Gemini 2.5 Pro** sebagai CIO Agent yang meninjau chart sebelum trade disetujui, menjadikannya bot trading otonom yang diawasi AI secara penuh.
+Ketika sinyal memenuhi threshold multi-layer yang ketat, sistem secara otomatis mengeksekusi bracket order (Entry + TP1 + TP2 + SL) dan mengelola posisi terbuka secara real-time. Setiap trade diawasi oleh **Gemini 2.5 Pro** sebagai CIO Agent yang meninjau chart sebelum eksekusi disetujui.
 
 ---
 
-## 🏗️ System Architecture / Arsitektur Sistem
+## 🏗️ Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                        NERA QUANT — System Architecture                          │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│   ┌─────────────────┐    ┌────────────────────────────────────────────────────┐  │
-│   │   EXTERNAL APIs  │    │              CORE PROCESSING LAYER                │  │
-│   ├─────────────────┤    ├────────────────────────────────────────────────────┤  │
-│   │  Binance Futures │───▶│  market_data.py  │  indicators.py  │  monte_carlo │  │
-│   │  (REST + WS)     │    │  Top 50 Pairs    │  EMA/RSI/MACD   │  5,000 paths │  │
-│   │  testnet.binance │    │  OHLCV + Ticker  │  SMC Detection  │  GBM Engine  │  │
-│   ├─────────────────┤    ├────────────────────────────────────────────────────┤  │
-│   │  ForexFactory    │───▶│             ORCHESTRATION LAYER                   │  │
-│   │  News Calendar   │    │   scanner.py — NeraScanner (Main Loop 15s)        │  │
-│   │  (XML Feed)      │    │   ├── CircuitBreaker     ├── PendingSetups        │  │
-│   ├─────────────────┤    │   ├── NewsBlackout        ├── ActiveTrade Monitor  │  │
-│   │  X.com / Nitter  │───▶│   └── AdaptiveRisk       └── Binance Sync (auto)  │  │
-│   │  (Macro Tweets)  │    ├────────────────────────────────────────────────────┤  │
-│   ├─────────────────┤    │               EXECUTION LAYER                     │  │
-│   │  Gemini 2.5 Pro  │◀──▶│   trader.py — BinanceTrader                      │  │
-│   │  (CIO Agent)     │    │   ├── Spread Check       ├── Safe Leverage        │  │
-│   └─────────────────┘    │   ├── Risk Sizing         ├── Market Order         │  │
-│                           │   ├── TP1/TP2 Algo Order  └── SL Algo Order       │  │
-│   ┌─────────────────┐    ├────────────────────────────────────────────────────┤  │
-│   │  OUTPUT LAYER    │    │               ANALYTICS & INTELLIGENCE            │  │
-│   ├─────────────────┤    │   analytics_engine.py  │  database.py (SQLite)     │  │
-│   │  dashboard.html  │◀──│   Pair Personality      │  Trade Intelligence      │  │
-│   │  (Web UI :8000)  │    │   Session Stats         │  MAE / MFE Tracking      │  │
-│   ├─────────────────┤    │   Setup Stats           │  Consecutive Losses      │  │
-│   │  Telegram Bot    │◀──│   AI Retrospective       │  Pair Stats              │  │
-│   │  (Notifier)      │    └────────────────────────────────────────────────────┤  │
-│   └─────────────────┘                                                          │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                    NERA QUANT — Thread Topology                      │
+├──────────────────────────────────────────────────────────────────────┤
+│  Main Thread   → NeraScanner.run_forever()  (15s scan loop)         │
+│  Thread 1      → api_server.start_server()  (HTTP :8000)            │
+│  Thread 2      → database.run_sync_loop()   (Binance sync 10s)      │
+│  Thread 3      → api_server.run_cache_updater() (balance/pos 10s)   │
+│  Thread 4      → NewsBlackoutFilter._refresh_loop() (calendar 1h)   │
+│  Thread 5      → _run_weekly_retrospective_loop() (AI report 7d)    │
+└──────────────────────────────────────────────────────────────────────┘
+
+Data Flow per Scan Cycle (every 15s):
+  MarketData → TechnicalIndicators (+ SMC) → MonteCarloEngine
+  → Signal Filtering → [Gemini CIO Debate] → BinanceTrader.execute()
+  → Notifier → Database → Analytics
 ```
 
 ---
 
-## 🔄 Main Flowchart / Flowchart Utama
+## 🧠 Core Engines
 
-```mermaid
-flowchart TD
-    %% Styling
-    classDef trigger fill:#1e1e2e,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4
-    classDef data fill:#1e3a5f,stroke:#89b4fa,stroke-width:2px,color:#cdd6f4
-    classDef indicator fill:#1a3a1a,stroke:#a6e3a1,stroke-width:2px,color:#cdd6f4
-    classDef mc fill:#3a2a00,stroke:#f9e2af,stroke-width:2px,color:#cdd6f4
-    classDef execution fill:#3a0a0a,stroke:#f38ba8,stroke-width:2px,color:#cdd6f4
-    classDef output fill:#003a35,stroke:#94e2d5,stroke-width:2px,color:#cdd6f4
-    classDef safety fill:#3a1a00,stroke:#fab387,stroke-width:2px,color:#cdd6f4
-    classDef decision fill:#2a0a3a,stroke:#cba6f7,stroke-width:2px,color:#cdd6f4
+### 🎲 Monte Carlo Probability Engine (`monte_carlo.py`)
 
-    %% ═══════════════════════════════════════
-    %% 1. SCHEDULER & CORE LOOP
-    %% ═══════════════════════════════════════
-    subgraph CoreLoop ["⏰ 1. Scheduler & Core Loop"]
-        A["Every 15 Seconds\n(SCAN_INTERVAL_SECONDS)"]:::trigger
-        B["NeraScanner\n(scanner.py)"]:::trigger
-        A --> B
-    end
+- **5,000 GBM paths** per pair per timeframe
+- **Fat-tail shocks**: 5% chance of ±3σ event per step
+- **SMC-aware TP/SL**: TP placed at opposite OB boundary, SL at OB edge + 0.5×ATR
+- **FVG Gravity**: price drifts toward unfilled Fair Value Gaps
+- **OB Elastic Barrier**: 75% bounce probability when price enters Order Block
+- **Composite confidence**: `win_prob × 0.60 + signal_score × 0.40`, hard-capped at 0.92
+- **HTF Strict Gatekeeper**: blocks 100% of counter-trend trades when 1H EMA opposes direction
 
-    %% ═══════════════════════════════════════
-    %% 2. SAFETY PRE-CHECKS
-    %% ═══════════════════════════════════════
-    subgraph SafetyGate ["🛡️ 2. Safety Pre-Checks"]
-        CB{{"Circuit Breaker\nCheck"}}:::decision
-        NB{{"News Blackout\nActive?"}}:::decision
-        B --> CB
-        CB -- "5+ losses → pause 4h" --> PAUSE["⛔ Suspend New Trades\n(monitoring only)"]:::safety
-        CB -- "3+ losses → risk -50%" --> CB2["⚠️ Risk Reduction Mode\n(50% normal risk)"]:::safety
-        CB -- "OK" --> NB
-        NB -- "Blackout Active" --> BE_MOVE["Move All Active\nSL → Breakeven"]:::safety
-        NB -- "OK" --> DataFetch
-    end
+### 📦 SMC Intelligence (`indicators.py`)
 
-    %% ═══════════════════════════════════════
-    %% 3. MARKET DATA RETRIEVAL
-    %% ═══════════════════════════════════════
-    subgraph DataFetch ["📡 3. Market Data Retrieval (market_data.py)"]
-        C["Top 50 USDT Pairs\n(Volume Filtered > 5M)"]:::data
-        D["OHLCV Klines 150 candle\n15m + 1h (Multi-TF)"]:::data
-        E["Ticker Price\nFunding Rate\nOpen Interest"]:::data
-        C --> D --> E
-    end
-
-    %% ═══════════════════════════════════════
-    %% 4. TECHNICAL ANALYSIS
-    %% ═══════════════════════════════════════
-    subgraph IndicatorEngine ["📊 4. Indicator & SMC Engine (indicators.py)"]
-        F["Classic Indicators\n(EMA 9/21/50, RSI, MACD,\nBollinger Bands, ATR, OBV,\nStochastic RSI)"]:::indicator
-
-        subgraph SMCBlock ["Smart Money Concepts (SMC)"]
-            G1["🔺 Swing High / Low\n(window=5 candles)"]:::indicator
-            G2["💥 BOS & CHoCH\n(Structure Break Detection)"]:::indicator
-            G3["📦 Unmitigated Order Blocks\n(Bullish / Bearish OB)"]:::indicator
-            G4["⚡ Fair Value Gaps\n(FVG Imbalance)"]:::indicator
-        end
-
-        H["get_signal_features()\nExtract 25+ feature dict"]:::indicator
-        E --> F
-        F --> G1 & G2 & G3 & G4
-        G1 & G2 & G3 & G4 --> H
-    end
-
-    %% ═══════════════════════════════════════
-    %% 5. MONTE CARLO ENGINE
-    %% ═══════════════════════════════════════
-    subgraph MCEngine ["🎲 5. Monte Carlo Engine (monte_carlo.py)"]
-        I["Composite Confluence Voting\n(Weighted Indicator System)"]:::mc
-
-        subgraph Voting ["Signal Scoring Breakdown"]
-            I1["Classic Technical:\nEMA±2.0 MACD±2.0 RSI±1.5\nBB±1.0 Volume±1.5 Stoch±1.5"]:::mc
-            I2["SMC Confluence:\nBOS/CHoCH +3.0 | OB Retest +2.5\nFVG Attraction +1.5"]:::mc
-            I3["HTF 1H Gatekeeper\n❌ Block counter-trend trades"]:::mc
-        end
-
-        J["Direction Decision\nLONG / SHORT / NEUTRAL"]:::mc
-
-        subgraph Simulation ["GBM Path Simulation"]
-            K1["SMC-Aware TP Level\n(Opposite OB boundary)"]:::mc
-            K2["SMC-Aware SL Level\n(OB edge + 0.5 ATR buffer)"]:::mc
-            K3["R/R Safeguard\nMin 1:1.5 enforced"]:::mc
-            L["Geometric Brownian Motion\n5,000 Parallel Paths"]:::mc
-            L1["FVG Gravity Effect\nMagnetic drift toward gap center"]:::mc
-            L2["OB Elastic Barrier\n75% bounce probability at OB"]:::mc
-        end
-
-        M["Win Probability &\nExpected Return\nConfidence = WinProb×60% + Score×40%"]:::mc
-
-        H --> I
-        I --> I1 & I2 & I3
-        I1 & I2 & I3 --> J
-        J -- "Not NEUTRAL" --> K1 & K2 & K3
-        K1 & K2 & K3 --> L
-        L --> L1 & L2
-        L1 & L2 --> M
-    end
-
-    %% ═══════════════════════════════════════
-    %% 6. FILTER & THRESHOLD GATE
-    %% ═══════════════════════════════════════
-    subgraph ThresholdGate ["🚦 6. Multi-Layer Threshold Gate"]
-        N{{"Confidence ≥ 58%?\nWin Prob ≥ 45%?\nScore ≥ 0.60?"}}:::decision
-        O{{"Position Limits?\nMargin < 75%?\nCooldown passed?\nOpen pos < 5?"}}:::decision
-        P{{"Gemini CIO\nApproval?"}}:::decision
-
-        M --> N
-        N -- "Pass" --> O
-        N -- "Fail" --> SKIP["⏭️ Skip Signal"]:::safety
-        O -- "Pass" --> P
-        O -- "Fail" --> SKIP
-        P -- "APPROVE" --> EXEC
-        P -- "REJECT" --> SKIP
-    end
-
-    %% ═══════════════════════════════════════
-    %% 7. ORDER EXECUTION
-    %% ═══════════════════════════════════════
-    subgraph ExecutionEngine ["⚡ 7. Order Execution (trader.py)"]
-        EXEC["Execute Bracket Order\n(Binance Futures Testnet)"]:::execution
-        EXEC --> E1["🛒 Market Entry Order"]:::execution
-        EXEC --> E2["🎯 TP1 Algo Order\n(50% qty @ partial TP)"]:::execution
-        EXEC --> E3["🎯 TP2 Algo Order\n(50% qty @ final TP)"]:::execution
-        EXEC --> E4["🛑 SL Algo Order\n(100% qty, STOP_MARKET)"]:::execution
-    end
-
-    %% ═══════════════════════════════════════
-    %% 8. ACTIVE POSITION MANAGEMENT
-    %% ═══════════════════════════════════════
-    subgraph ActiveMgmt ["📈 8. Active Position Management"]
-        Q1["TP1 Reached?\n→ Close 50%\n→ Move SL to Breakeven"]:::execution
-        Q2["Reversal Detected?\n→ Early Exit All"]:::execution
-        Q3["Binance Auto-Sync\n(heal orphaned orders)"]:::execution
-        Q4["MAE/MFE Tracking\n(every cycle)"]:::execution
-        E4 --> Q1 & Q2 & Q3 & Q4
-    end
-
-    %% ═══════════════════════════════════════
-    %% 9. OUTPUT
-    %% ═══════════════════════════════════════
-    subgraph OutputLayer ["📤 9. Output & Notifications"]
-        R["api_server.py\n(REST API + WebSocket)"]:::output
-        S["dashboard.html\n(Live Web UI :8000)"]:::output
-        T["Telegram Bot\n(Signal + Trade Alerts)"]:::output
-        U["SQLite Database\n(Trade Intelligence Log)"]:::output
-        V["Analytics Engine\n(Pair / Session / Setup Stats)"]:::output
-
-        Q4 --> R & T & U
-        R --> S
-        U --> V
-    end
-```
-
----
-
-## 🧠 Core Engines / Mesin Utama
-
-### 🎲 Monte Carlo Probability Engine
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                  MONTE CARLO SIMULATION ENGINE                      │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  Input: OHLCV DataFrame (150 candles) + Feature Dict               │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────┐      │
-│  │ STEP 1: Compute Historical Volatility                    │      │
-│  │   sigma = std(log_returns) of last 100 candles           │      │
-│  │   mu    = 0.0 (neutral drift — direction by score only)  │      │
-│  └──────────────────────────────────────────────────────────┘      │
-│                     ↓                                               │
-│  ┌──────────────────────────────────────────────────────────┐      │
-│  │ STEP 2: Determine TP/SL Levels (SMC-Aware)               │      │
-│  │   LONG:  SL = bull_ob_bot − 0.5×ATR                     │      │
-│  │          TP = bear_ob_bot (or +2.5×ATR adaptive)         │      │
-│  │   SHORT: SL = bear_ob_top + 0.5×ATR                     │      │
-│  │          TP = bull_ob_top (or −2.5×ATR adaptive)         │      │
-│  │   R/R enforcement: minimum 1:1.5                         │      │
-│  └──────────────────────────────────────────────────────────┘      │
-│                     ↓                                               │
-│  ┌──────────────────────────────────────────────────────────┐      │
-│  │ STEP 3: Simulate 5,000 Price Paths (GBM)                 │      │
-│  │   For each step t in [1 .. n_steps]:                     │      │
-│  │     rand_z ~ N(0,1)  [5% fat-tail shock ±3σ]            │      │
-│  │     if SMC_MODE:                                          │      │
-│  │       + FVG Gravity:  drift toward unfilled gap          │      │
-│  │       + OB Barrier:   75% bounce when price enters OB    │      │
-│  │     price[t] = price[t-1] × exp(mu + sigma × rand_z)    │      │
-│  └──────────────────────────────────────────────────────────┘      │
-│                     ↓                                               │
-│  ┌──────────────────────────────────────────────────────────┐      │
-│  │ STEP 4: Evaluate TP/SL Hit (First-Touch Logic)           │      │
-│  │   win  = TP hit BEFORE SL (tp_first < sl_first)         │      │
-│  │   loss = SL hit before TP                                │      │
-│  │   open = neither hit by end of simulation                │      │
-│  │   win_probability = profitable_paths / 5000              │      │
-│  │   expected_return = weighted average across all paths    │      │
-│  └──────────────────────────────────────────────────────────┘      │
-│                     ↓                                               │
-│  ┌──────────────────────────────────────────────────────────┐      │
-│  │ STEP 5: Composite Confidence Score                       │      │
-│  │   confidence = win_prob × 0.60 + signal_score × 0.40    │      │
-│  │   penalty: funding rate vs direction (−10%)              │      │
-│  │   hard cap: 0.92 (no 100% confidence)                   │      │
-│  └──────────────────────────────────────────────────────────┘      │
-│                                                                     │
-│  Output: SimulationResult (confidence, win_prob, TP, SL, RR)       │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 📦 Smart Money Concepts (SMC) Intelligence
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                  SMC DETECTION PIPELINE                             │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. SWING HIGH / LOW DETECTION                                      │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  Window = 5 candles on each side                │            │
-│     │  Swing High: high[i] > all highs in ±window     │            │
-│     │  Swing Low:  low[i]  < all lows  in ±window     │            │
-│     └─────────────────────────────────────────────────┘            │
-│                                                                     │
-│  2. STRUCTURE DETECTION (BOS & CHoCH)                              │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  BOS  (Break of Structure):                     │            │
-│     │    close > last swing_high → Bullish BOS (+1)   │            │
-│     │    close < last swing_low  → Bearish BOS (-1)   │            │
-│     │                                                 │            │
-│     │  CHoCH (Change of Character):                   │            │
-│     │    Same as BOS but trend was previously OPPOSITE│            │
-│     │    Signals TREND REVERSAL (high-weight vote)    │            │
-│     └─────────────────────────────────────────────────┘            │
-│                                                                     │
-│  3. ORDER BLOCK IDENTIFICATION                                      │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  After Bullish BOS/CHoCH:                        │            │
-│     │    Find last BEARISH candle before impulse      │            │
-│     │    That candle = Bullish Order Block (OB)       │            │
-│     │    → SL placed BELOW this OB                   │            │
-│     │                                                 │            │
-│     │  After Bearish BOS/CHoCH:                        │            │
-│     │    Find last BULLISH candle before impulse      │            │
-│     │    That candle = Bearish Order Block (OB)       │            │
-│     │    → SL placed ABOVE this OB                   │            │
-│     │                                                 │            │
-│     │  Mitigation: OB is invalidated when price       │            │
-│     │  closes BEYOND the OB boundary                 │            │
-│     └─────────────────────────────────────────────────┘            │
-│                                                                     │
-│  4. FAIR VALUE GAP (FVG) DETECTION                                  │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  Bullish FVG: low[i] > high[i-2]  (gap up)     │            │
-│     │  Bearish FVG: high[i] < low[i-2]  (gap down)   │            │
-│     │  Acts as MAGNETIC PULL in GBM simulation        │            │
-│     └─────────────────────────────────────────────────┘            │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 🧩 Decision Intelligence System
-
-```mermaid
-flowchart LR
-    subgraph DI ["Decision Intelligence Pipeline"]
-        direction TB
-        A["Every Trade Opened\n→ Log to trade_intelligence table"] --> B["Track:\n• Entry time / session / weekday\n• MC confidence / win_prob\n• Signal score / R:R\n• SMC signals (OB, FVG, BOS)\n• RSI / MACD / Funding Rate"]
-        B --> C["Every Trade Closed\n→ Fetch exact exit from\nBinance userTrades API\n→ Log PnL / outcome"]
-        C --> D["Analytics Engine runs\nevery 10 minutes"]
-        D --> E1["Pair Personality\n• Win rate per pair\n• Best session & timeframe\n• Adaptive risk %"]
-        D --> E2["Session Stats\n• Win rate per session\n(Asia / London / NY)\n• Avg R:R achieved"]
-        D --> E3["Setup Stats\n• INSTANT vs SMC_OB_PULLBACK\n• Avg duration & win rate"]
-        D --> E4["MAE / MFE Tracking\n• Max adverse excursion\n• Max favorable excursion"]
-        E1 --> F["Adaptive Risk Sizing\n• WR ≥ 65% → 2% risk\n• WR 50-65% → 1% risk\n• WR < 50%  → 0.5% risk"]
-    end
-```
-
-### 🛡️ Risk Management Pipeline
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    RISK MANAGEMENT LAYERS                           │
-├────────────────────────┬────────────────────────────────────────────┤
-│  LAYER                 │  MECHANISM                                 │
-├────────────────────────┼────────────────────────────────────────────┤
-│  1. Position Sizing    │  risk_amount  = balance × 2%               │
-│                        │  quantity     = risk_amount / SL_distance  │
-│                        │  Adaptive: scales with pair win-rate       │
-├────────────────────────┼────────────────────────────────────────────┤
-│  2. Safe Leverage      │  target: 20x (configurable)                │
-│                        │  cap_by_SL%: max_safe = 0.85 / sl_pct     │
-│                        │  cap_by_exchange: pair max leverage        │
-│                        │  leverage = min(target, exchange, safe)    │
-├────────────────────────┼────────────────────────────────────────────┤
-│  3. Margin Guard       │  Block new trades if:                      │
-│                        │  margin_used > 75% of wallet balance       │
-├────────────────────────┼────────────────────────────────────────────┤
-│  4. Position Limit     │  Max 5 simultaneous open positions         │
-├────────────────────────┼────────────────────────────────────────────┤
-│  5. Partial TP         │  TP1: Close 50% @ 0.6×ATR (early profit)  │
-│  (Breakeven Protocol)  │  TP2: Remaining 50% @ full TP level        │
-│                        │  → Move SL to breakeven after TP1 hit     │
-├────────────────────────┼────────────────────────────────────────────┤
-│  6. Circuit Breaker    │  3 consecutive losses → risk -50% for 2h  │
-│                        │  5 consecutive losses → full pause 4h     │
-├────────────────────────┼────────────────────────────────────────────┤
-│  7. Spread Protection  │  Check bid/ask spread before execution     │
-│                        │  Block if spread > 0.05% (5 bps)          │
-├────────────────────────┼────────────────────────────────────────────┤
-│  8. Cooldown System    │  Signal cooldown: 3 min per pair           │
-│                        │  Trade cooldown: 10 min per pair           │
-├────────────────────────┼────────────────────────────────────────────┤
-│  9. HTF Gatekeeper     │  Block 100% of counter-trend signals       │
-│                        │  if 1H EMA trend opposes entry direction   │
-├────────────────────────┼────────────────────────────────────────────┤
-│  10. News Blackout     │  Suspend new trades 30m before +           │
-│                        │  15m after High Impact economic news       │
-│                        │  (CPI, FOMC, NFP, etc.)                   │
-└────────────────────────┴────────────────────────────────────────────┘
-```
-
----
-
-## 🛡️ Safety Features / Fitur Keamanan
-
-### 🇬🇧 English
-
-| Feature | Description |
+| Component | Detection Logic |
 |---|---|
-| **Circuit Breaker** | Automatically halts or reduces trading after consecutive losses. 3 losses → 50% risk reduction for 2h. 5 losses → full 4h trading pause. |
-| **News Blackout Filter** | Monitors the ForexFactory economic calendar. Suspends new trades 30 minutes before and 15 minutes after any High Impact event (CPI, NFP, FOMC). Also analyzes X.com tweets via Gemini for FUD detection. |
-| **HTF Strict Gatekeeper** | Fully blocks any trade that opposes the 1-hour timeframe EMA trend. No counter-trend entries allowed when the HTF is in a clear direction. |
-| **Spread Protection** | Checks the real-time bid/ask spread via Binance `bookTicker`. Rejects execution if spread exceeds 5bps (0.05%) to protect against slippage. |
-| **Binance Auto-Sync** | Every scan cycle syncs local `active_trades.json` against real Binance positions. Orphaned algo orders (TP/SL without a live position) are automatically cancelled. |
-| **Gemini CIO Approval** | Before any trade is executed, Gemini 2.5 Pro reviews a generated chart of the setup. If the AI responds REJECT, the trade is skipped. |
-| **Breakeven Protocol** | After TP1 is hit, the stop loss is immediately moved to the entry price. This eliminates risk of losing a winning trade. |
+| **Swing High/Low** | window=5 candles each side |
+| **BOS** (Break of Structure) | close > last swing_high (bullish) or < swing_low (bearish) |
+| **CHoCH** (Change of Character) | BOS in opposite direction of prior trend → reversal signal |
+| **Order Blocks** | Last opposing candle before impulse move; invalidated when price closes beyond OB |
+| **Fair Value Gaps** | `low[i] > high[i-2]` (bullish FVG) or `high[i] < low[i-2]` (bearish FVG) |
 
-### 🇮🇩 Bahasa Indonesia
+### 🧩 Decision Intelligence System (`analytics_engine.py` + `database.py`)
 
-| Fitur | Deskripsi |
+Every trade is logged to `trade_intelligence` table with 30+ fields. After close, analytics runs every 10 minutes:
+
+- **Pair Personality**: win rate, best session, best timeframe, adaptive risk %
+- **Session Stats**: win rate per Asia/London/NY session
+- **Setup Stats**: INSTANT vs SMC_OB_PULLBACK performance
+- **ε-greedy Weighting**: setup and timeframe weights adjusted by historical win rate
+- **Auto-Blacklist**: pairs with <35% win rate over 15+ trades are blacklisted
+- **MAE/MFE Tracking**: max adverse/favorable excursion per trade
+- **L3 Meta-Feedback**: Gemini evaluates whether CIO debate was correct post-trade
+- **Weekly AI Retrospective**: Gemini reviews last 50 trades every 7 days (scheduled thread)
+
+### 🧠 RAG Pattern Memory (`rag_memory.py`)
+
+- Stores 19-feature float32 embedding per closed trade in SQLite BLOB
+- Cosine similarity retrieval (min 0.80 threshold)
+- Enriches Gemini CIO context with top-5 similar historical setups before each trade
+- Features: RSI, BB%, EMA trend, MACD, volume, SMC signals, funding rate, OI, ATR, confidence, win_prob, R:R
+
+---
+
+## 🛡️ Safety Features
+
+| Layer | Mechanism |
 |---|---|
-| **Circuit Breaker** | Menghentikan atau mengurangi trading secara otomatis setelah consecutive losses. 3 loss → risk dikurangi 50% selama 2 jam. 5 loss → jeda trading penuh 4 jam. |
-| **News Blackout Filter** | Memantau kalender ekonomi ForexFactory. Menangguhkan trade baru 30 menit sebelum dan 15 menit setelah event High Impact (CPI, NFP, FOMC). Juga menganalisis tweet X.com via Gemini untuk deteksi FUD. |
-| **HTF Strict Gatekeeper** | Memblokir penuh trade yang berlawanan dengan tren EMA timeframe 1 jam. Tidak ada entry counter-trend ketika HTF sudah dalam arah yang jelas. |
-| **Spread Protection** | Memeriksa spread bid/ask real-time via Binance `bookTicker`. Menolak eksekusi jika spread melebihi 5bps (0.05%) untuk melindungi dari slippage. |
-| **Binance Auto-Sync** | Setiap siklus scan, `active_trades.json` lokal disinkronkan dengan posisi riil di Binance. Orphaned algo orders (TP/SL tanpa posisi aktif) dibatalkan secara otomatis. |
-| **Gemini CIO Approval** | Sebelum trade dieksekusi, Gemini 2.5 Pro meninjau chart yang dihasilkan dari setup tersebut. Jika AI merespons REJECT, trade dilewati. |
-| **Breakeven Protocol** | Setelah TP1 tercapai, stop loss langsung dipindahkan ke harga entry. Ini mengeliminasi risiko kehilangan dari trade yang sudah menang. |
+| **1. Position Sizing** | `risk_amount = balance × 2%` / `quantity = risk_amount / SL_distance`. Adaptive: scales with pair win-rate |
+| **2. Safe Leverage** | `max_safe = 0.85 / sl_pct`. Final = `min(target, exchange_max, safe)` |
+| **3. Margin Guard** | Block new trades if `margin_used > 75%` of wallet balance |
+| **4. Position Limit** | Max 5 simultaneous open positions |
+| **5. Partial TP + Breakeven** | TP1 closes 50% @ 0.6×ATR. After TP1 hit → SL moved to entry price (free trade) |
+| **6. Circuit Breaker** | 3 consecutive losses → risk −50% for 2h. 5 losses → full 4h trading pause |
+| **7. Spread Protection** | Reject execution if bid/ask spread > 0.05% (5bps) via `bookTicker` |
+| **8. Cooldown System** | Signal cooldown: 3 min per pair. Trade cooldown: 10 min per pair |
+| **9. HTF Gatekeeper** | Block 100% counter-trend signals when 1H EMA trend opposes entry |
+| **10. News Blackout** | Suspend new trades 30m before + 15m after High Impact events (CPI, NFP, FOMC). Move active SL to breakeven during blackout |
+| **11. Binance Auto-Sync** | Every scan: sync `active_trades.json` vs real Binance positions. Cancel orphaned algo orders |
+| **12. Gemini CIO Approval** | Gemini 2.5 Pro reviews chart + RAG context before every trade. REJECT = skip trade |
+| **13. Auto-Blacklist** | Pairs with <35% win rate over 15+ trades auto-blacklisted from scanning |
 
 ---
 
@@ -461,493 +140,286 @@ flowchart LR
 ╔════════════════════════════════════════════════════════════════╗
 ║                  INDICATOR SCORING SYSTEM                      ║
 ╠════════════════════════╦═══════════╦════════════════════════════╣
-║  Indicator             ║  Weight   ║  Signal Condition          ║
+║  Indicator             ║  Weight   ║  Bullish Condition         ║
 ╠════════════════════════╬═══════════╬════════════════════════════╣
-║  EMA 9/21/50 Alignment ║  2.0      ║  Bullish: 9>21>50          ║
-║  Price vs EMA50        ║  1.5      ║  Bullish: close > EMA50    ║
-║  MACD Crossover        ║  2.0      ║  Bullish: MACD cross above ║
-║  MACD Line Position    ║  1.0      ║  Bullish: MACD > 0         ║
-║  RSI Signal            ║  1.5      ║  Bullish: RSI < 35         ║
-║  Stochastic Cross      ║  1.5      ║  Bullish: K crosses above D║
-║  RSI Divergence        ║  2.0      ║  Bullish: Price LL, RSI HL ║
-║  MACD Divergence       ║  1.5      ║  Bullish: Price HH, MACD LH║
-║  Bollinger Band        ║  1.0      ║  Bullish: BB% < 20%        ║
-║  Volume Spike          ║  1.5      ║  >2x average volume        ║
+║  EMA 9/21/50 Alignment ║  2.0      ║  9 > 21 > 50               ║
+║  Price vs EMA50        ║  1.5      ║  close > EMA50             ║
+║  MACD Crossover        ║  2.0      ║  MACD crosses above signal ║
+║  MACD Line Position    ║  1.0      ║  MACD > 0                  ║
+║  RSI Signal            ║  1.5      ║  RSI < 35 (oversold)       ║
+║  Stochastic Cross      ║  1.5      ║  %K crosses above %D       ║
+║  RSI Divergence        ║  2.0      ║  Price LL, RSI HL          ║
+║  MACD Divergence       ║  1.5      ║  Price HH, MACD LH         ║
+║  Bollinger Band        ║  1.0      ║  BB% < 20%                 ║
+║  Volume Spike          ║  1.5      ║  > 2× average volume       ║
 ╠════════════════════════╬═══════════╬════════════════════════════╣
-║  SMC: BOS/CHoCH        ║  3.0 ⭐   ║  Bullish: close > swing_high║
+║  SMC: BOS/CHoCH        ║  3.0 ⭐   ║  close > last swing_high   ║
 ║  SMC: OB Retest        ║  2.5 ⭐   ║  Price inside Bullish OB   ║
 ║  SMC: FVG Attraction   ║  1.5      ║  Unfilled bullish gap above║
 ╠════════════════════════╬═══════════╬════════════════════════════╣
-║  Funding Rate Bias     ║  0.5      ║  Bullish: funding < −0.05% ║
+║  Funding Rate Bias     ║  0.5      ║  funding < −0.05%          ║
 ║  Open Interest Change  ║  1.0      ║  OI > 1.5% confirms trend  ║
 ╠════════════════════════╩═══════════╩════════════════════════════╣
-║  HTF 1H EMA Filter: BLOCKS if trend opposes direction (×0.0)  ║
+║  HTF 1H EMA Filter: BLOCKS counter-trend trades (×0.0)        ║
 ╚════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## 📁 File Structure / Struktur File
+## 📁 File Structure
 
 ```
 nera-quant/
 │
 ├── 🚀 ENTRY POINTS
-│   ├── main.py              ← Application entry point
-│   ├── start.sh             ← Start bot in background (nohup)
+│   ├── main.py              ← Entry point + thread orchestration
+│   ├── start.sh             ← Start bot via nohup
 │   ├── stop.sh              ← Stop bot gracefully
-│   └── status.sh            ← Check bot status & logs
+│   └── status.sh            ← Check status & last 20 log lines
 │
 ├── 🧠 CORE ENGINE
-│   ├── scanner.py           ← NeraScanner: main orchestration loop (1212 lines)
-│   ├── monte_carlo.py       ← Monte Carlo Engine + GBM simulation (743 lines)
-│   ├── indicators.py        ← Technical indicators + SMC detection (418 lines)
-│   ├── trader.py            ← Binance order execution engine (950 lines)
+│   ├── scanner.py           ← NeraScanner: main orchestration loop
+│   ├── monte_carlo.py       ← Monte Carlo Engine + GBM simulation
+│   ├── indicators.py        ← Technical indicators + SMC detection
+│   ├── trader.py            ← Binance order execution engine
 │   └── market_data.py       ← Market data fetching + pair filtering
 │
 ├── 📊 INTELLIGENCE LAYER
-│   ├── analytics_engine.py  ← Pair/session/setup statistics engine
+│   ├── analytics_engine.py  ← Pair/session/setup statistics + AI retrospective
 │   ├── database.py          ← SQLite ORM + trade intelligence schema
-│   ├── market_context.py    ← Session detection (Asia/London/NY) + HTF bias
-│   └── news_filter.py       ← Economic news blackout filter + X.com scraper
+│   ├── rag_memory.py        ← RAG pattern memory (cosine similarity)
+│   ├── market_context.py    ← Session detection + HTF bias voting
+│   └── news_filter.py       ← Economic news blackout + X.com FUD scraper
 │
 ├── 🤖 AI INTEGRATION
-│   ├── gemini_client.py     ← Gemini 2.5 Pro API client (text + vision)
-│   └── charting_engine.py   ← Chart generation for CIO review
+│   ├── gemini_client.py     ← Gemini 2.5 Pro (text + vision + debate + meta-eval)
+│   └── charting_engine.py   ← mplfinance chart generation for CIO review
 │
 ├── 🌐 WEB INTERFACE
-│   ├── api_server.py        ← FastAPI/HTTP REST server (:8000)
-│   └── dashboard.html       ← Live trading dashboard (88KB, single-file)
+│   ├── api_server.py        ← HTTP REST server (:8000)
+│   └── dashboard.html       ← Live trading dashboard (single-file SPA)
 │
 ├── ⚙️ CONFIGURATION
-│   └── config.py            ← All settings & thresholds (158 lines)
+│   ├── config.py            ← All settings & thresholds (gitignored)
+│   └── config.example.py    ← Template with placeholder values
 │
-├── 💾 PERSISTENCE
-│   ├── trades.db            ← SQLite database (trade history + analytics)
-│   ├── active_trades.json   ← Live position tracker (survives restart)
-│   └── pending_setups.json  ← SMC OB pullback setups awaiting trigger
+├── 🗄️ DATA
+│   ├── trades.db            ← SQLite database (gitignored)
+│   ├── active_trades.json   ← Live position tracker (gitignored)
+│   └── pending_setups.json  ← SMC pending setup tracker (gitignored)
 │
-├── 🧪 TESTING
-│   ├── test_system.py       ← Full system integration test
-│   ├── test_trader.py       ← Order execution tests
-│   └── scratch/             ← Development & debugging scripts
-│
-├── 📋 REQUIREMENTS
-│   └── requirements.txt     ← Python dependencies
-│
-└── 📜 LOGS
-    ├── nera_quant.log       ← Full system log
-    └── nohup.out            ← Background process output
+└── 🧪 SCRATCH / UTILITIES
+    └── scratch/             ← One-off analysis & calibration scripts
 ```
 
 ---
 
-## ⚙️ Configuration / Konfigurasi
+## ⚙️ Configuration
 
-All settings are in [`config.py`](config.py). Key parameters:
-
-### Trading Parameters
-
-```python
-# ═══ Monte Carlo ═══════════════════════════════
-MC_SIMULATIONS          = 5000    # Number of price path simulations
-MC_CONFIDENCE_THRESHOLD = 0.65    # Minimum confidence to open position
-MC_MIN_WIN_PROBABILITY  = 0.45    # Minimum win probability (45%)
-MC_LOOKBACK_CANDLES     = 100     # Historical candles for sigma estimation
-SCAN_TIMEFRAMES         = ['15m', '1h']  # Multi-timeframe scanning
-
-# ═══ Trading ════════════════════════════════════
-TOP_PAIRS_COUNT         = 50      # Scan top N USDT pairs by volume
-SCAN_INTERVAL_SECONDS   = 15      # Scan cycle frequency
-LEVERAGE                = 20      # Target leverage (auto-capped for safety)
-RISK_PER_TRADE          = 0.02    # 2% risk per trade
-MIN_VOLUME_USDT         = 5_000_000  # Min 24h volume filter (5M USDT)
-MAX_OPEN_POSITIONS      = 5       # Simultaneous position limit
-MAX_MARGIN_USAGE_PCT    = 0.75    # Max 75% of balance in margin
-
-# ═══ Smart Money Concepts ═══════════════════════
-SMC_MODE                = True    # Enable SMC analysis
-SMC_MC_CONFIDENCE_THRESHOLD = 0.58  # Lower threshold for high R/R setups
-SMC_SWING_WINDOW        = 5       # Swing detection window (candles)
-HTF_STRICT_GATEKEEPER   = True    # Block counter-HTF-trend trades (100%)
-
-# ═══ Safety & Risk Management ═══════════════════
-CIRCUIT_BREAKER_LOSSES  = 5       # Losses before full pause
-CIRCUIT_BREAKER_PAUSE_HOURS = 4   # Pause duration (hours)
-RISK_REDUCTION_LOSSES   = 3       # Losses before risk reduction
-RISK_REDUCTION_PCT      = 0.50    # Risk reduction factor (50%)
-NEWS_BLACKOUT_ENABLED   = True    # Enable news blackout filter
-BLACKOUT_BEFORE_MINS    = 30      # Minutes before news to suspend
-BLACKOUT_AFTER_MINS     = 15      # Minutes after news to resume
-SPREAD_PROTECTION_ENABLED = True  # Enable spread check
-MAX_SPREAD_PCT          = 0.05    # Max 5bps spread
-
-# ═══ Partial TP (Breakeven Protocol) ════════════
-ENABLE_PARTIAL_TP       = True    # Split TP into TP1 + TP2
-PARTIAL_TP_ATR_MULTIPLIER = 0.6   # TP1 @ 0.6×ATR (close 50%)
-
-# ═══ AI Integration ═════════════════════════════
-ENABLE_CIO_AGENT        = True    # Gemini AI approves trades
-ENABLE_VISUAL_CHECK     = True    # Send chart to Gemini + Telegram
-ENABLE_TWITTER_SCRAPE   = True    # Scrape X.com for macro sentiment
-ENABLE_AI_RETROSPECTIVE = True    # Weekly AI trade evaluation
-```
-
----
-
-## 🚀 Installation & Usage / Instalasi & Penggunaan
-
-### Prerequisites / Prasyarat
-
-- Python 3.10+
-- Binance Futures Testnet account
-- Telegram Bot Token
-- Google Gemini API Key
-
-### Installation / Instalasi
+Copy `config.example.py` ke `config.py` dan isi dengan credentials kamu:
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/ajiekusumadhany/nera-quant.git
-cd nera-quant
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Configure your credentials in config.py
+cp config.example.py config.py
 nano config.py
 ```
 
-### Configuration / Konfigurasi Kredensial
+Key settings:
 
-Edit `config.py` with your credentials:
+| Setting | Default | Description |
+|---|---|---|
+| `AUTO_TRADE` | `True` | Enable live order execution |
+| `LEVERAGE` | `20` | Target leverage (auto-capped per pair) |
+| `RISK_PER_TRADE` | `0.02` | 2% risk per trade |
+| `MAX_OPEN_POSITIONS` | `5` | Max simultaneous positions |
+| `MC_CONFIDENCE_THRESHOLD` | `0.58` | Min confidence to trade |
+| `SMC_MC_CONFIDENCE_THRESHOLD` | `0.60` | Min confidence for SMC setups |
+| `MIN_SIGNAL_SCORE` | `0.60` | Min composite signal score |
+| `MC_MIN_WIN_PROBABILITY` | `0.45` | Min win probability |
+| `SCAN_INTERVAL_SECONDS` | `15` | Scan cycle interval |
+| `SCAN_TIMEFRAMES` | `['15m', '1h']` | Timeframes to scan |
+| `SMC_MODE` | `True` | Enable SMC detection |
+| `HTF_STRICT_GATEKEEPER` | `True` | Block counter-trend trades |
+| `ENABLE_CIO_AGENT` | `True` | Enable Gemini CIO review |
+| `ENABLE_CIO_DEBATE` | `True` | Enable bull vs bear debate |
+| `ENABLE_PARTIAL_TP` | `True` | Enable TP1/TP2 split |
+| `CIRCUIT_BREAKER_ENABLED` | `True` | Enable circuit breaker |
+| `NEWS_BLACKOUT_ENABLED` | `True` | Enable news blackout filter |
+| `ADAPTIVE_RISK` | `True` | Scale risk by pair win-rate |
+| `ENABLE_AI_RETROSPECTIVE` | `True` | Enable weekly AI report |
 
-```python
-API_KEY          = 'YOUR_BINANCE_TESTNET_API_KEY'
-API_SECRET       = 'YOUR_BINANCE_TESTNET_API_SECRET'
-TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
-TELEGRAM_CHAT_ID   = 'YOUR_TELEGRAM_CHAT_ID'
-GEMINI_API_KEY     = 'YOUR_GEMINI_API_KEY'
-BINANCE_BASE_URL   = 'https://testnet.binancefuture.com'  # testnet!
-```
+---
 
-> ⚠️ **WARNING**: Never commit `config.py` with real credentials to git! Use environment variables or a `.env` file in production.
+## 🚀 Installation & Usage
 
-### Running / Menjalankan
+### Prerequisites
 
 ```bash
-# Test the system first / Test sistem terlebih dahulu
-python test_system.py
-
-# Run directly (foreground) / Jalankan langsung
-python main.py
-
-# Run in background (recommended) / Jalankan di background (disarankan)
-bash start.sh
-
-# Check status / Cek status
-bash status.sh
-
-# Stop the bot / Hentikan bot
-bash stop.sh
+python3 --version  # 3.10+
+pip install -r requirements.txt
 ```
 
-### Accessing the Dashboard / Akses Dashboard
+### Dependencies
 
 ```
-http://localhost:8000
+python-binance==1.0.19    # Binance API client
+requests==2.31.0          # HTTP requests
+numpy==1.26.4             # Numerical computation
+pandas==2.2.2             # DataFrame operations
+ta==0.11.0                # Technical analysis library
+aiohttp==3.9.5            # Async HTTP
+colorlog==6.8.2           # Colored logging
+google-genai==1.16.0      # Gemini AI client
+Pillow==10.4.0            # Image processing for charts
+mplfinance==0.12.10b0     # Candlestick chart generation
+matplotlib==3.9.2         # Chart rendering backend
+ntscraper==0.3.8          # X.com/Nitter scraper for FUD detection
+schedule==1.2.2           # Task scheduling
+```
+
+### Start / Stop
+
+```bash
+# Start bot (background, nohup)
+./start.sh
+
+# Check status
+./status.sh
+
+# Stop bot
+./stop.sh
+
+# View live logs
+tail -f nera_quant.log
+```
+
+### Manual run (foreground)
+
+```bash
+python3 main.py
 ```
 
 ---
 
 ## 📡 Dashboard & Notifications
 
-### Web Dashboard
+### Web Dashboard (`:8000`)
 
-The live dashboard at `:8000` displays:
-- 📈 **Real-time signals** with confidence scores and indicator breakdown
-- 💼 **Active positions** with live PnL, TP1/TP2/SL levels
-- 📊 **Trade history** and performance metrics
-- 🗺️ **Session heatmap** (Asia / London / New York)
-- 📰 **Upcoming news events** and blackout status
+REST API endpoints:
+
+| Endpoint | Description |
+|---|---|
+| `GET /` | Serve `dashboard.html` |
+| `GET /api/state` | Current scan state (count, last scan, signals) |
+| `GET /api/balance` | Binance wallet balance |
+| `GET /api/positions` | Open positions |
+| `GET /api/nodes` | Signal graph nodes & edges |
+| `GET /api/pair-stats` | Pair personality stats |
+| `GET /api/session-stats` | Session win rate stats |
+| `GET /api/setup-stats` | Setup type win rate stats |
+| `GET /api/hourly-stats` | Hourly UTC performance heatmap |
+| `GET /api/intelligence/{symbol}` | Full intelligence profile for a pair |
 
 ### Telegram Notifications
 
-The bot sends the following alert types:
-
-| Alert Type | Trigger |
+| Event | Notification |
 |---|---|
-| 🚀 **Startup** | Bot initialized and scanning |
-| 📊 **New Signal** | High-confidence signal detected |
-| ✅ **Trade Executed** | Bracket order filled on Binance |
-| 🔥 **TP1 Hit** | Partial close + breakeven SL moved |
-| ❌ **SL Hit** | Stop loss triggered |
-| ⚡ **Early Exit** | Position closed on reversal |
-| ⏳ **Pending Setup** | SMC OB pullback setup registered |
-| 🎯 **Pending Triggered** | Pullback setup activated |
-| 🚨 **News Blackout** | Trading suspended for event |
-| ⛔ **Circuit Breaker** | Trading paused after losses |
-| 📋 **Scan Summary** | Every 10 scans (150 seconds) |
-| 🧠 **AI Retrospective** | Weekly Gemini trade analysis |
+| Bot startup | System info + mode |
+| Signal found | Confidence bar, entry/TP/SL, win prob |
+| Trade executed | Order IDs, leverage, margin used + chart |
+| TP1 hit | Partial close details + breakeven SL |
+| Early close | Reason, estimated PnL |
+| Pending setup created | Trigger price, invalidation price |
+| Pending setup triggered | Full trade details |
+| Pending setup invalidated | Reason |
+| Circuit breaker | Reason + resume time |
+| Scan summary | Every 10 scans |
+| Weekly AI report | Gemini retrospective analysis |
+| Error | Error message |
 
 ---
 
 ## 🗄️ Database Schema
 
-```sql
--- Main trade intelligence log
-CREATE TABLE trade_intelligence (
-    id                    INTEGER PRIMARY KEY,
-    trade_ref             TEXT UNIQUE,     -- Unique reference ID
-    symbol                TEXT,            -- Trading pair (e.g. BTCUSDT)
-    direction             TEXT,            -- LONG or SHORT
-    entry_time_utc        TEXT,
-    close_time_utc        TEXT,
-    timeframe             TEXT,            -- 15m or 1h
-    session               TEXT,            -- Asia / London / New_York
-    entry_hour_utc        INTEGER,
-    entry_weekday         INTEGER,
-    setup_type            TEXT,            -- INSTANT / SMC_OB_PULLBACK
-    
-    -- Monte Carlo Metrics
-    mc_confidence         REAL,
-    mc_win_prob           REAL,
-    signal_score          REAL,
-    risk_reward           REAL,
-    
-    -- Technical at Entry
-    atr, atr_pct, funding_rate, oi_change,
-    htf_bias, bb_pct, rsi, macd_cross, vol_spike,
-    
-    -- SMC Levels
-    bull_ob_top, bull_ob_bot,
-    bear_ob_top, bear_ob_bot,
-    bos, choch, fvg_dir,
-    
-    -- Execution
-    entry_price, take_profit, stop_loss,
-    leverage, margin_used,
-    exit_price, result_pnl, outcome,     -- WIN / LOSS / BE
-    
-    -- Risk Context
-    consecutive_losses_at_entry  INTEGER,
-    pending_duration_mins        INTEGER,
-    
-    -- Position Tracking
-    mae REAL,   -- Max Adverse Excursion (worst drawdown)
-    mfe REAL    -- Max Favorable Excursion (best unrealized gain)
-);
+SQLite database (`trades.db`) dengan 9 tabel:
 
--- Per-pair statistics (updated every 10 minutes)
-CREATE TABLE pair_stats (
-    symbol               TEXT PRIMARY KEY,
-    total_trades         INTEGER,
-    win_rate             REAL,
-    avg_rr               REAL,
-    best_session         TEXT,
-    best_timeframe       TEXT,
-    recommended_risk_pct REAL   -- Adaptive risk based on win rate
-);
-
--- Session performance (Asia / London / New_York)
-CREATE TABLE session_stats (
-    session    TEXT,
-    timeframe  TEXT,
-    win_rate   REAL,
-    avg_rr     REAL,
-    PRIMARY KEY (session, timeframe)
-);
-
--- Setup type performance
-CREATE TABLE setup_stats (
-    setup_type   TEXT PRIMARY KEY,
-    win_rate     REAL,
-    avg_rr       REAL
-);
-```
+| Table | Purpose |
+|---|---|
+| `trades` | Raw trade records synced from Binance income log |
+| `income_log` | Full Binance income history (REALIZED_PNL, COMMISSION, etc.) |
+| `sync_state` | Last sync timestamp per income type |
+| `trade_intelligence` | Rich per-trade analytics (30+ fields: session, SMC signals, MAE/MFE, CIO verdict) |
+| `pair_stats` | Aggregated pair personality (win rate, best session, adaptive risk) |
+| `session_stats` | Win rate per session × timeframe combination |
+| `setup_stats` | Win rate per setup type (INSTANT, SMC_OB_PULLBACK) |
+| `auto_blacklist` | Chronically underperforming pairs/sessions |
+| `pattern_embeddings` | RAG memory: 19-feature float32 embeddings for cosine similarity retrieval |
 
 ---
 
 ## 🤖 AI Integration (Gemini 2.5 Pro)
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                  GEMINI AI INTEGRATION FLOW                         │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. PRE-TRADE CIO APPROVAL                                          │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  charting_engine.py generates chart image       │            │
-│     │  (Entry, TP1, TP2, SL, OB zones marked)         │            │
-│     │                    ↓                            │            │
-│     │  gemini_client.ask_gemini_vision(               │            │
-│     │      prompt="Review chart. APPROVE or REJECT.", │            │
-│     │      image_path=chart_path                      │            │
-│     │  )                                              │            │
-│     │                    ↓                            │            │
-│     │  If response contains "REJECT" → skip trade     │            │
-│     │  If response contains "APPROVE" → execute       │            │
-│     └─────────────────────────────────────────────────┘            │
-│                                                                     │
-│  2. MACRO SENTIMENT ANALYSIS (X.com / Twitter)                      │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  Scrape latest tweets from @tier10k (finance)   │            │
-│     │  Send to Gemini with Chief Economist context    │            │
-│     │                    ↓                            │            │
-│     │  Response: "FUD" → activate blackout mode       │            │
-│     │  Response: "NEUTRAL" → continue trading         │            │
-│     │  Response: "BULLISH" → full confidence          │            │
-│     └─────────────────────────────────────────────────┘            │
-│                                                                     │
-│  3. WEEKLY AI RETROSPECTIVE                                         │
-│     ┌─────────────────────────────────────────────────┐            │
-│     │  Pull last 50 completed trades from SQLite      │            │
-│     │  Format: symbol, direction, outcome, PnL,       │            │
-│     │          confidence, score, setup_type          │            │
-│     │                    ↓                            │            │
-│     │  Gemini analyzes patterns in wins vs losses     │            │
-│     │  Suggests 2-3 parameter adjustments             │            │
-│     │                    ↓                            │            │
-│     │  Report delivered to Telegram                   │            │
-│     └─────────────────────────────────────────────────┘            │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### CIO Debate (`ask_gemini_debate`)
+
+Before every trade execution, two AI analysts debate:
+- **Bull Analyst**: argues for the trade
+- **Bear Analyst**: argues against
+- **CIO**: renders final `APPROVE` or `REJECT` verdict
+
+Context includes: signal metrics, chart image (if `ENABLE_VISUAL_CHECK=True`), and top-5 similar historical patterns from RAG memory.
+
+### Visual Chart Review (`charting_engine.py`)
+
+Generates a candlestick chart with:
+- Entry price line (blue dashed)
+- Take Profit line (green)
+- Stop Loss line (red)
+- Order Block zone (purple fill, only when OB levels exist)
+
+Chart is sent to Gemini for visual analysis and optionally to Telegram.
+
+### Meta-Feedback Loop (`ask_gemini_meta_eval`)
+
+After each trade closes, Gemini evaluates whether the CIO debate verdict was correct given the actual outcome. Results stored in `trade_intelligence.meta_feedback` for continuous learning.
+
+### Weekly AI Retrospective (`run_weekly_ai_retrospective`)
+
+Every 7 days, Gemini reviews the last 50 closed trades and provides:
+- Analysis of losing trade patterns
+- Common characteristics of winning trades
+- 2-3 specific parameter adjustment suggestions
+
+Report is sent to Telegram.
 
 ---
 
-## 📦 Dependencies
+## 🔴 Switch to Live Trading
 
-```
-python-binance==1.0.19    # Binance REST & WebSocket client
-requests==2.31.0          # HTTP requests
-numpy==1.26.4             # Numerical computing (Monte Carlo GBM)
-pandas==2.2.2             # OHLCV DataFrame handling
-ta==0.11.0                # Technical analysis library
-aiohttp==3.9.5            # Async HTTP (WebSocket support)
-asyncio-throttle==1.0.2   # Rate limiting
-python-telegram-bot==21.3 # Telegram Bot API
-schedule==1.2.2           # Cron-style job scheduler
-colorlog==6.8.2           # Colored console logging
-```
+1. Ganti `BINANCE_BASE_URL` di `config.py` ke `https://fapi.binance.com`
+2. Ganti API key & secret ke credentials akun live kamu
+3. Set `AUTO_TRADE = True`
+4. Mulai dengan `RISK_PER_TRADE = 0.01` (1%) untuk live trading awal
+5. Monitor dashboard dan Telegram notifications
+
+> ⚠️ **DISCLAIMER**: Bot ini untuk tujuan edukasi dan penelitian. Trading futures mengandung risiko tinggi kehilangan modal. Gunakan dengan bijak dan selalu DYOR.
 
 ---
 
-## 🔴 Switch to Live Trading / Beralih ke Real Trade
+## 🐛 Bug Fixes & Changelog
 
-> ⚠️ **Pastikan Anda sudah menguji sistem di testnet dan memahami risikonya sebelum beralih ke real trade.**
+### v1.1.0 (Latest)
 
-### 🇬🇧 English
+**Bug Fixes:**
 
-Switching from testnet to live trading requires **3 changes only** — all in `config.py`:
-
-**Step 1 — Replace API credentials**
-
-Log in to [binance.com → API Management](https://www.binance.com/en/my/settings/api-management) and create a new API key with:
-- ✅ Enable Reading
-- ✅ Enable Futures
-- ❌ Disable Withdrawals (never enable this for a bot)
-
-```python
-# config.py
-API_KEY    = 'YOUR_LIVE_API_KEY'
-API_SECRET = 'YOUR_LIVE_API_SECRET'
-```
-
-**Step 2 — Change the base URLs to production endpoints**
-
-```python
-# config.py
-BINANCE_BASE_URL = 'https://fapi.binance.com'       # was: testnet.binancefuture.com
-BINANCE_WS_URL   = 'wss://fstream.binance.com'      # was: stream.binancefuture.com
-```
-
-**Step 3 — Restart the bot**
-
-```bash
-bash stop.sh
-bash start.sh
-```
-
-That's it. No other code changes are needed — all other modules (`trader.py`, `market_data.py`, etc.) read `BINANCE_BASE_URL` directly from `config.py`.
-
----
-
-### 🇮🇩 Bahasa Indonesia
-
-Beralih dari testnet ke live trading hanya butuh **3 perubahan** — semuanya di `config.py`:
-
-**Langkah 1 — Ganti API credentials**
-
-Login ke [binance.com → API Management](https://www.binance.com/en/my/settings/api-management), buat API key baru dengan permission:
-- ✅ Enable Reading
-- ✅ Enable Futures
-- ❌ Disable Withdrawals (jangan pernah aktifkan ini untuk bot)
-
-```python
-# config.py
-API_KEY    = 'API_KEY_LIVE_ANDA'
-API_SECRET = 'API_SECRET_LIVE_ANDA'
-```
-
-**Langkah 2 — Ganti URL ke endpoint production**
-
-```python
-# config.py
-BINANCE_BASE_URL = 'https://fapi.binance.com'       # sebelumnya: testnet.binancefuture.com
-BINANCE_WS_URL   = 'wss://fstream.binance.com'      # sebelumnya: stream.binancefuture.com
-```
-
-**Langkah 3 — Restart bot**
-
-```bash
-bash stop.sh
-bash start.sh
-```
-
-Selesai. Tidak ada perubahan kode lain yang diperlukan — semua modul (`trader.py`, `market_data.py`, dll.) membaca `BINANCE_BASE_URL` langsung dari `config.py`.
-
----
-
-### 📋 Testnet vs Live — URL Reference
-
-| | Testnet | Live (Production) |
+| Bug | File | Fix |
 |---|---|---|
-| **REST API** | `https://testnet.binancefuture.com` | `https://fapi.binance.com` |
-| **WebSocket** | `wss://stream.binancefuture.com` | `wss://fstream.binance.com` |
-| **API Key Source** | [testnet.binancefuture.com](https://testnet.binancefuture.com) | [binance.com/en/my/settings/api-management](https://www.binance.com/en/my/settings/api-management) |
+| `fill_between=None` crash di mplfinance | `charting_engine.py` | Hanya pass `fill_between` ke `mpf.plot()` ketika OB levels tersedia. Sebelumnya semua chart generation gagal. |
+| `send_trade_executed()` arity mismatch | `notifier.py` | Tambah parameter `chart_path=None`. Scanner memanggil dengan 3 args tapi fungsi hanya menerima 2. |
+| `execute_partial_close()` wrong args di blackout path | `scanner.py` | Fix: hapus `partial_pct=0.0` (tidak ada di signature), tambah `quantity` yang hilang. |
+| RAG features selalu empty dict | `scanner.py` | Fix: `active_trade` adalah dict, bukan object. Ganti `getattr(active_trade, 'indicator_breakdown', None)` → `active_trade.get('indicator_breakdown')`. |
+| `indicator_breakdown` tidak disimpan ke `active_trades` | `scanner.py` | Tambah `indicator_breakdown`, `risk_reward`, dan `session` ke kedua active_trades dict (INSTANT + SMC_OB_PULLBACK). |
+| Weekly retrospective tidak pernah berjalan | `main.py` | Tambah background thread `_run_weekly_retrospective_loop()` yang berjalan setiap 7 hari. |
+| Missing dependencies di `requirements.txt` | `requirements.txt` | Tambah: `google-genai`, `Pillow`, `mplfinance`, `matplotlib`, `ntscraper`. |
 
 ---
 
-## ⚠️ Disclaimer
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║                      ⚠️  DISCLAIMER  ⚠️                      ║
-╠══════════════════════════════════════════════════════════════╣
-║                                                              ║
-║  This software is for EDUCATIONAL and RESEARCH purposes     ║
-║  only. It is currently configured for BINANCE TESTNET and   ║
-║  uses simulated (paper) money only.                         ║
-║                                                              ║
-║  PAST PERFORMANCE does not guarantee future results.        ║
-║  Cryptocurrency trading involves SIGNIFICANT RISK.          ║
-║  You may lose all your invested capital.                    ║
-║                                                              ║
-║  The author is NOT responsible for any financial losses     ║
-║  resulting from the use of this software.                   ║
-║                                                              ║
-║  DO NOT use this system with real money without thorough    ║
-║  backtesting, risk assessment, and professional advice.     ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-```
-
----
-
-<div align="center">
-
-**Built with 🧠 Monte Carlo Mathematics + 📦 Smart Money Concepts + 🤖 Gemini AI**
-
-*NERA QUANT Trading AI v1.0 — Binance Futures Testnet*
-
-</div>
+*NERA QUANT — Built with ❤️ for algorithmic trading research*

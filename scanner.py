@@ -252,7 +252,7 @@ class NeraScanner:
 
                     # Feature 5: Store pattern in RAG memory
                     try:
-                        _features = getattr(active_trade, 'indicator_breakdown', None) or {}
+                        _features = active_trade.get('indicator_breakdown') or {}
                         _outcome_str = 'WIN' if realized_pnl > 0 else ('LOSS' if realized_pnl < 0 else 'BE')
                         rag_memory.store_pattern(
                             trade_ref=trade_ref,
@@ -472,10 +472,10 @@ class NeraScanner:
                         )
                         success, new_tp_id, new_sl_id, err = self.trader.execute_partial_close(
                             symbol     = sym,
+                            quantity   = quantity,
                             direction  = direction,
                             entry_price= entry_price,
                             tp2_price  = tp2_price,
-                            partial_pct= 0.0,   # Jangan tutup sebagian, hanya geser SL
                         )
                         if success:
                             self.active_trades[sym]['stop_loss'] = entry_price
@@ -845,21 +845,24 @@ class NeraScanner:
 
                         # Add to active_trades tracker
                         self.active_trades[trade.symbol] = {
-                            'symbol':           trade.symbol,
-                            'direction':        trade.direction,
-                            'quantity':         trade.quantity,
-                            'entry_price':      trade.entry_price,
-                            'take_profit':      trade.take_profit,
-                            'stop_loss':        trade.stop_loss,
-                            'tp1_price':        getattr(trade, 'tp1_price', 0.0),
-                            'is_partial':       getattr(trade, 'is_partial', False),
-                            'status':           'OPEN',
-                            'tp1_order_id':     getattr(trade, 'tp1_order_id', None),
-                            'tp2_order_id':     getattr(trade, 'tp2_order_id', None),
-                            'sl_order_id':      trade.sl_order_id,
-                            'timestamp':        datetime.utcnow().isoformat(),
-                            'timeframe':        setup['timeframe'],
-                            'trade_ref':        trade_ref
+                            'symbol':               trade.symbol,
+                            'direction':            trade.direction,
+                            'quantity':             trade.quantity,
+                            'entry_price':          trade.entry_price,
+                            'take_profit':          trade.take_profit,
+                            'stop_loss':            trade.stop_loss,
+                            'tp1_price':            getattr(trade, 'tp1_price', 0.0),
+                            'is_partial':           getattr(trade, 'is_partial', False),
+                            'status':               'OPEN',
+                            'tp1_order_id':         getattr(trade, 'tp1_order_id', None),
+                            'tp2_order_id':         getattr(trade, 'tp2_order_id', None),
+                            'sl_order_id':          trade.sl_order_id,
+                            'timestamp':            datetime.utcnow().isoformat(),
+                            'timeframe':            setup['timeframe'],
+                            'trade_ref':            trade_ref,
+                            'indicator_breakdown':  getattr(signal, 'indicator_breakdown', {}) or {},
+                            'risk_reward':          signal.risk_reward,
+                            'session':              setup.get('session', ''),
                         }
                         self._save_active_trades()
 
@@ -1136,21 +1139,24 @@ class NeraScanner:
 
                             # Tambah ke active_trades tracker
                             self.active_trades[trade.symbol] = {
-                                'symbol':           trade.symbol,
-                                'direction':        trade.direction,
-                                'quantity':         trade.quantity,
-                                'entry_price':      trade.entry_price,
-                                'take_profit':      trade.take_profit,
-                                'stop_loss':        trade.stop_loss,
-                                'tp1_price':        getattr(trade, 'tp1_price', 0.0),
-                                'is_partial':       getattr(trade, 'is_partial', False),
-                                'status':           'OPEN',
-                                'tp1_order_id':     getattr(trade, 'tp1_order_id', None),
-                                'tp2_order_id':     getattr(trade, 'tp2_order_id', None),
-                                'sl_order_id':      trade.sl_order_id,
-                                'timestamp':        now.isoformat(),
-                                'timeframe':        signal.timeframe,
-                                'trade_ref':        trade_ref
+                                'symbol':               trade.symbol,
+                                'direction':            trade.direction,
+                                'quantity':             trade.quantity,
+                                'entry_price':          trade.entry_price,
+                                'take_profit':          trade.take_profit,
+                                'stop_loss':            trade.stop_loss,
+                                'tp1_price':            getattr(trade, 'tp1_price', 0.0),
+                                'is_partial':           getattr(trade, 'is_partial', False),
+                                'status':               'OPEN',
+                                'tp1_order_id':         getattr(trade, 'tp1_order_id', None),
+                                'tp2_order_id':         getattr(trade, 'tp2_order_id', None),
+                                'sl_order_id':          trade.sl_order_id,
+                                'timestamp':            now.isoformat(),
+                                'timeframe':            signal.timeframe,
+                                'trade_ref':            trade_ref,
+                                'indicator_breakdown':  getattr(signal, 'indicator_breakdown', {}) or {},
+                                'risk_reward':          signal.risk_reward,
+                                'session':              getattr(signal, 'session', ''),
                             }
                             self._save_active_trades()
 
