@@ -32,6 +32,22 @@ from notifier import TelegramNotifier
 from trader import BinanceTrader
 import database as db
 from analytics_engine import get_pair_personality, run_all_analytics, get_setup_weight, get_timeframe_weight, get_blacklisted_symbols, get_blacklisted_pair_sessions
+import sqlite3
+import os
+
+def get_backtest_blocked_pairs() -> set:
+    try:
+        db_path = os.path.join(os.path.dirname(__file__), 'pair_statistics.db')
+        if not os.path.exists(db_path):
+            return set()
+        conn = sqlite3.connect(db_path)
+        rows = conn.execute("SELECT symbol FROM pair_stats WHERE win_rate < 0.40 AND total_trades >= 10").fetchall()
+        conn.close()
+        return {r[0] for r in rows}
+    except Exception as e:
+        logger.error(f"Error fetching backtest blocked pairs: {e}")
+        return set()
+
 from market_context import get_full_context
 from news_filter import get_news_filter
 import gemini_client
@@ -422,8 +438,13 @@ class NeraScanner:
         for active_symbol in list(self.active_trades.keys()):
             if active_symbol not in symbols:
                 symbols.append(active_symbol)
+
+        # ─── BACKTEST BLACKLIST CHECK ──────────────────────────────────────────
+        backtest_blocked = get_backtest_blocked_pairs()
+        if backtest_blocked:
+            symbols = [s for s in symbols if s not in backtest_blocked or s in self.active_trades]
                 
-        logger.info(f"Scanning {len(symbols)} pairs...")
+        logger.info(f"Scanning {len(symbols)} pairs... (Blocked by backtest: {len(backtest_blocked)})")
 
         # ─── NEWS BLACKOUT CHECK ───────────────────────────────────────────────
         # Jika blackout aktif (30m sebelum / 15m setelah berita High Impact),

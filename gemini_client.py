@@ -81,7 +81,7 @@ def ask_gemini_debate(
         f"{base_context}"
         f"You are the BULL ANALYST. Your job is to find the strongest reasons WHY this {direction} trade SHOULD be taken. "
         f"Focus on: trend alignment, momentum, SMC confluence, risk/reward. "
-        f"Be concise (3-4 sentences). End with: BULL_VERDICT: STRONG | MODERATE | WEAK"
+        f"Be concise (3-4 sentences). Gunakan Bahasa Indonesia. End with: BULL_VERDICT: STRONG | MODERATE | WEAK"
     )
 
     # ── Bear Analyst ──────────────────────────────────────────────────
@@ -89,7 +89,7 @@ def ask_gemini_debate(
         f"{base_context}"
         f"You are the BEAR ANALYST (skeptic). Your job is to find the strongest reasons WHY this {direction} trade SHOULD BE REJECTED. "
         f"Focus on: counter-trend risks, weak confluence, poor R/R, news risk, overextension. "
-        f"Be concise (3-4 sentences). End with: BEAR_VERDICT: STRONG | MODERATE | WEAK"
+        f"Be concise (3-4 sentences). Gunakan Bahasa Indonesia. End with: BEAR_VERDICT: STRONG | MODERATE | WEAK"
     )
 
     try:
@@ -181,7 +181,7 @@ def ask_gemini_meta_eval(
             f"Bull Analyst said: {bull_reasoning[:300]}\n"
             f"Bear Analyst said: {bear_reasoning[:300]}\n\n"
             f"Was the CIO verdict correct? What did the analysts miss or get right? "
-            f"Give a 2-3 sentence evaluation. End with: META_QUALITY: GOOD | ACCEPTABLE | POOR"
+            f"Give a 2-3 sentence evaluation. Gunakan Bahasa Indonesia. End with: META_QUALITY: GOOD | ACCEPTABLE | POOR"
         )
         resp = client.models.generate_content(
             model='gemini-2.5-pro', contents=prompt

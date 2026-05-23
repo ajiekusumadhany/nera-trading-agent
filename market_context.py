@@ -83,9 +83,9 @@ def get_market_regime(htf_features: Optional[dict]) -> str:
     rsi       = htf_features.get('rsi', 50)
 
     # Strong trend: EMA aligned + BOS + volume confirmation
-    if ema_trend == 1 and bos and vol_ratio > 1.2 and rsi > 50:
+    if ema_trend == 1 and bos == 1 and vol_ratio > 1.2 and rsi > 50:
         return 'TRENDING_BULL'
-    if ema_trend == -1 and bos and vol_ratio > 1.2 and rsi < 50:
+    if ema_trend == -1 and bos == -1 and vol_ratio > 1.2 and rsi < 50:
         return 'TRENDING_BEAR'
 
     # CHoCH = possible reversal, market is transitioning
@@ -118,15 +118,15 @@ def get_htf_bias(htf_features: Optional[dict]) -> str:
 
     bullish_votes = sum([
         1 if ema_trend == 1 else 0,
-        1 if above_ema50 else 0,
+        1 if above_ema50 == 1 else 0,
         1 if rsi > 52 else 0,
-        1 if macd_pos else 0,
+        1 if macd_pos == 1 else 0,
     ])
     bearish_votes = sum([
         1 if ema_trend == -1 else 0,
-        1 if not above_ema50 else 0,
+        1 if above_ema50 == -1 else 0,
         1 if rsi < 48 else 0,
-        1 if not macd_pos else 0,
+        1 if macd_pos == -1 else 0,
     ])
 
     if bullish_votes >= 3:

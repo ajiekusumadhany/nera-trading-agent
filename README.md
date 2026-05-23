@@ -1,425 +1,307 @@
 <div align="center">
 
 ```
-╔══════════════════════════════════════════════════════════════╗
-║          ███╗   ██╗███████╗██████╗  █████╗                  ║
-║          ████╗  ██║██╔════╝██╔══██╗██╔══██╗                 ║
-║          ██╔██╗ ██║█████╗  ██████╔╝███████║                 ║
-║          ██║╚██╗██║██╔══╝  ██╔══██╗██╔══██║                 ║
-║          ██║ ╚████║███████╗██║  ██║██║  ██║                 ║
-║          ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝                ║
-║                                                              ║
-║            Q U A N T   T R A D I N G   A I   v1.0           ║
-║        Monte Carlo Probability Engine • SMC Intelligence     ║
-╚══════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║      ███╗   ██╗███████╗██████╗  █████╗                                      ║
+║      ████╗  ██║██╔════╝██╔══██╗██╔══██╗                                     ║
+║      ██╔██╗ ██║█████╗  ██████╔╝███████║                                     ║
+║      ██║╚██╗██║██╔══╝  ██╔══██╗██╔══██║                                     ║
+║      ██║ ╚████║███████╗██║  ██║██║  ██║                                     ║
+║      ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝                                     ║
+║                                                                              ║
+║                Q U A N T   T R A D I N G   A I   •   v1.0                  ║
+║                     Monte Carlo Probability Engine                          ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 ```
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Binance](https://img.shields.io/badge/Binance-Futures-F0B90B?style=for-the-badge&logo=binance&logoColor=black)](https://testnet.binancefuture.com)
 [![Gemini AI](https://img.shields.io/badge/Gemini_2.5_Pro-CIO_Agent-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev)
 [![Telegram](https://img.shields.io/badge/Telegram-Notifier-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)](https://core.telegram.org/bots)
 
 </div>
 
----
-
-## 📋 Table of Contents
-
-- [Overview](#-overview)
-- [Architecture](#-architecture)
-- [Core Engines](#-core-engines)
-- [Safety Features](#-safety-features)
-- [Technical Indicators](#-technical-indicators)
-- [File Structure](#-file-structure)
-- [Configuration](#-configuration)
-- [Installation & Usage](#-installation--usage)
-- [Dashboard & Notifications](#-dashboard--notifications)
-- [Database Schema](#-database-schema)
-- [AI Integration](#-ai-integration-gemini-25-pro)
-- [Bug Fixes & Changelog](#-bug-fixes--changelog)
+<div align="center">
+  <details open>
+    <summary><strong>:indonesia: Bahasa Indonesia</strong></summary>
+    <p><em>Untuk melihat versi Bahasa Inggris, klik di bawah.</em></p>
+  </details>
+  <details>
+    <summary><strong>:us: English</strong></summary>
+    <p><em>To see the Indonesian version, click above.</em></p>
+  </details>
+</div>
 
 ---
 
-## 🌐 Overview
+<details>
+<summary><strong>:indonesia: Bahasa Indonesia</strong></summary>
 
-**NERA QUANT** adalah sistem trading algoritmik AI otonom untuk **Binance Futures**. Sistem ini secara kontinu memindai **Top 50 pair USDT perpetual** dan menggabungkan simulasi Monte Carlo probabilistik dengan **Smart Money Concepts (SMC)** untuk menghasilkan sinyal trading confidence tinggi.
+**NERA QUANT** adalah sistem trading algoritmik AI otonom untuk **Binance Futures**. Sistem ini secara kontinu memindai **Top 50 pair USDT perpetual**, menggabungkan analisis teknikal, **Smart Money Concepts (SMC)**, dan simulasi probabilistik **Monte Carlo** untuk mengidentifikasi dan mengeksekusi peluang trading dengan keyakinan tinggi.
 
-Ketika sinyal memenuhi threshold multi-layer yang ketat, sistem secara otomatis mengeksekusi bracket order (Entry + TP1 + TP2 + SL) dan mengelola posisi terbuka secara real-time. Setiap trade diawasi oleh **Gemini 2.5 Pro** sebagai CIO Agent yang meninjau chart sebelum eksekusi disetujui.
+Setiap sinyal divalidasi oleh **Gemini 2.5 Pro** yang bertindak sebagai *Chief Investment Officer (CIO)*, melakukan debat *Bull vs. Bear* sebelum menyetujui eksekusi trade.
 
----
+### 🌟 Fitur Utama
 
-## 🏗️ Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                    NERA QUANT — Thread Topology                      │
-├──────────────────────────────────────────────────────────────────────┤
-│  Main Thread   → NeraScanner.run_forever()  (15s scan loop)         │
-│  Thread 1      → api_server.start_server()  (HTTP :8000)            │
-│  Thread 2      → database.run_sync_loop()   (Binance sync 10s)      │
-│  Thread 3      → api_server.run_cache_updater() (balance/pos 10s)   │
-│  Thread 4      → NewsBlackoutFilter._refresh_loop() (calendar 1h)   │
-│  Thread 5      → _run_weekly_retrospective_loop() (AI report 7d)    │
-└──────────────────────────────────────────────────────────────────────┘
-
-Data Flow per Scan Cycle (every 15s):
-  MarketData → TechnicalIndicators (+ SMC) → MonteCarloEngine
-  → Signal Filtering → [Gemini CIO Debate] → BinanceTrader.execute()
-  → Notifier → Database → Analytics
-```
+- **Strategi Hybrid**: Menggabungkan indikator teknikal klasik (EMA, MACD, RSI) dengan Smart Money Concepts (BOS, CHoCH, Order Blocks, FVG) untuk sinyal berkualitas tinggi.
+- **Perkiraan Probabilistik**: Menggunakan **Monte Carlo Engine** (5,000 simulasi per sinyal) untuk menghitung probabilitas profit (Win Probability) dan memvalidasi setiap setup.
+- **Pengambilan Keputusan Berbasis AI**: **Gemini 2.5 Pro CIO Agent** menganalisis setiap sinyal, lengkap dengan chart dan data historis (RAG), lalu melakukan debat Bull vs. Bear untuk memberikan persetujuan akhir.
+- **Eksekusi Otomatis**: Terintegrasi penuh dengan API Binance Futures untuk eksekusi order otomatis, termasuk *dynamic position sizing*, *partial take profit*, dan *breakeven stop loss*.
+- **Manajemen Risiko Komprehensif**: Dilengkapi 13 lapisan pengaman, termasuk *Circuit Breaker*, *News Blackout Filter*, *Spread Protection*, dan *Safe Leverage Calculation*.
+- **Sistem Adaptif**: Menganalisis performa trading secara terus-menerus untuk menyesuaikan risiko per pair (**Adaptive Risk**) dan memberi bobot pada strategi yang lebih berhasil (**ε-greedy Weighting**).
+- **Dashboard & Notifikasi Live**: Dilengkapi antarmuka web real-time dan notifikasi Telegram untuk semua aktivitas trading.
 
 ---
 
-## 🧠 Core Engines
+### 🏗️ Arsitektur & Alur Kerja
 
-### 🎲 Monte Carlo Probability Engine (`monte_carlo.py`)
+Sistem berjalan dalam beberapa thread terpisah untuk memastikan responsivitas dan stabilitas. Alur kerja utama terjadi pada *scan cycle* setiap 15-60 detik.
 
-- **5,000 GBM paths** per pair per timeframe
-- **Fat-tail shocks**: 5% chance of ±3σ event per step
-- **SMC-aware TP/SL**: TP placed at opposite OB boundary, SL at OB edge + 0.5×ATR
-- **FVG Gravity**: price drifts toward unfilled Fair Value Gaps
-- **OB Elastic Barrier**: 75% bounce probability when price enters Order Block
-- **Composite confidence**: `win_prob × 0.60 + signal_score × 0.40`, hard-capped at 0.92
-- **HTF Strict Gatekeeper**: blocks 100% of counter-trend trades when 1H EMA opposes direction
+#### Diagram Alur Kerja
 
-### 📦 SMC Intelligence (`indicators.py`)
-
-| Component | Detection Logic |
-|---|---|
-| **Swing High/Low** | window=5 candles each side |
-| **BOS** (Break of Structure) | close > last swing_high (bullish) or < swing_low (bearish) |
-| **CHoCH** (Change of Character) | BOS in opposite direction of prior trend → reversal signal |
-| **Order Blocks** | Last opposing candle before impulse move; invalidated when price closes beyond OB |
-| **Fair Value Gaps** | `low[i] > high[i-2]` (bullish FVG) or `high[i] < low[i-2]` (bearish FVG) |
-
-### 🧩 Decision Intelligence System (`analytics_engine.py` + `database.py`)
-
-Every trade is logged to `trade_intelligence` table with 30+ fields. After close, analytics runs every 10 minutes:
-
-- **Pair Personality**: win rate, best session, best timeframe, adaptive risk %
-- **Session Stats**: win rate per Asia/London/NY session
-- **Setup Stats**: INSTANT vs SMC_OB_PULLBACK performance
-- **ε-greedy Weighting**: setup and timeframe weights adjusted by historical win rate
-- **Auto-Blacklist**: pairs with <35% win rate over 15+ trades are blacklisted
-- **MAE/MFE Tracking**: max adverse/favorable excursion per trade
-- **L3 Meta-Feedback**: Gemini evaluates whether CIO debate was correct post-trade
-- **Weekly AI Retrospective**: Gemini reviews last 50 trades every 7 days (scheduled thread)
-
-### 🧠 RAG Pattern Memory (`rag_memory.py`)
-
-- Stores 19-feature float32 embedding per closed trade in SQLite BLOB
-- Cosine similarity retrieval (min 0.80 threshold)
-- Enriches Gemini CIO context with top-5 similar historical setups before each trade
-- Features: RSI, BB%, EMA trend, MACD, volume, SMC signals, funding rate, OI, ATR, confidence, win_prob, R:R
-
----
-
-## 🛡️ Safety Features
-
-| Layer | Mechanism |
-|---|---|
-| **1. Position Sizing** | `risk_amount = balance × 2%` / `quantity = risk_amount / SL_distance`. Adaptive: scales with pair win-rate |
-| **2. Safe Leverage** | `max_safe = 0.85 / sl_pct`. Final = `min(target, exchange_max, safe)` |
-| **3. Margin Guard** | Block new trades if `margin_used > 75%` of wallet balance |
-| **4. Position Limit** | Max 5 simultaneous open positions |
-| **5. Partial TP + Breakeven** | TP1 closes 50% @ 0.6×ATR. After TP1 hit → SL moved to entry price (free trade) |
-| **6. Circuit Breaker** | 3 consecutive losses → risk −50% for 2h. 5 losses → full 4h trading pause |
-| **7. Spread Protection** | Reject execution if bid/ask spread > 0.05% (5bps) via `bookTicker` |
-| **8. Cooldown System** | Signal cooldown: 3 min per pair. Trade cooldown: 10 min per pair |
-| **9. HTF Gatekeeper** | Block 100% counter-trend signals when 1H EMA trend opposes entry |
-| **10. News Blackout** | Suspend new trades 30m before + 15m after High Impact events (CPI, NFP, FOMC). Move active SL to breakeven during blackout |
-| **11. Binance Auto-Sync** | Every scan: sync `active_trades.json` vs real Binance positions. Cancel orphaned algo orders |
-| **12. Gemini CIO Approval** | Gemini 2.5 Pro reviews chart + RAG context before every trade. REJECT = skip trade |
-| **13. Auto-Blacklist** | Pairs with <35% win rate over 15+ trades auto-blacklisted from scanning |
-
----
-
-## 📊 Technical Indicators
-
-```
-╔════════════════════════════════════════════════════════════════╗
-║                  INDICATOR SCORING SYSTEM                      ║
-╠════════════════════════╦═══════════╦════════════════════════════╣
-║  Indicator             ║  Weight   ║  Bullish Condition         ║
-╠════════════════════════╬═══════════╬════════════════════════════╣
-║  EMA 9/21/50 Alignment ║  2.0      ║  9 > 21 > 50               ║
-║  Price vs EMA50        ║  1.5      ║  close > EMA50             ║
-║  MACD Crossover        ║  2.0      ║  MACD crosses above signal ║
-║  MACD Line Position    ║  1.0      ║  MACD > 0                  ║
-║  RSI Signal            ║  1.5      ║  RSI < 35 (oversold)       ║
-║  Stochastic Cross      ║  1.5      ║  %K crosses above %D       ║
-║  RSI Divergence        ║  2.0      ║  Price LL, RSI HL          ║
-║  MACD Divergence       ║  1.5      ║  Price HH, MACD LH         ║
-║  Bollinger Band        ║  1.0      ║  BB% < 20%                 ║
-║  Volume Spike          ║  1.5      ║  > 2× average volume       ║
-╠════════════════════════╬═══════════╬════════════════════════════╣
-║  SMC: BOS/CHoCH        ║  3.0 ⭐   ║  close > last swing_high   ║
-║  SMC: OB Retest        ║  2.5 ⭐   ║  Price inside Bullish OB   ║
-║  SMC: FVG Attraction   ║  1.5      ║  Unfilled bullish gap above║
-╠════════════════════════╬═══════════╬════════════════════════════╣
-║  Funding Rate Bias     ║  0.5      ║  funding < −0.05%          ║
-║  Open Interest Change  ║  1.0      ║  OI > 1.5% confirms trend  ║
-╠════════════════════════╩═══════════╩════════════════════════════╣
-║  HTF 1H EMA Filter: BLOCKS counter-trend trades (×0.0)        ║
-╚════════════════════════════════════════════════════════════════╝
+```mermaid
+graph TD
+    A[Mulai Siklus Scan] --> B{Ambil Top 50 Pairs};
+    B --> C{Analisis Paralel per Pair};
+    C --> D[1. Hitung Indikator & SMC];
+    D --> E[2. Hitung Signal Score];
+    E --> F{Signal Score >= 0.60?};
+    F -- Tidak --> G[Abaikan Sinyal];
+    F -- Ya --> H[3. Jalankan Monte Carlo Engine];
+    H --> I[4. Hitung Confidence & Win Probability];
+    I --> J{Confidence & Win Prob >= Threshold?};
+    J -- Tidak --> G;
+    J -- Ya --> K[5. Kirim Sinyal ke Gemini CIO Agent];
+    K --> L[6. AI CIO Debate: Bull vs. Bear];
+    L --> M{Verdict == 'APPROVE'?};
+    M -- Tidak --> G;
+    M -- Ya --> N[7. Hitung Posisi & Leverage Aman];
+    N --> O[8. Eksekusi Market Order via Binance API];
+    O --> P[9. Pasang Order TP & SL];
+    P --> Q[10. Kirim Notifikasi ke Telegram];
+    Q --> R[11. Simpan Trade ke Database];
+    R --> S[Selesai];
 ```
 
+#### Penjelasan Strategi Trading
+
+Strategi NERA QUANT adalah *multi-layered trend-following & mean-reversion system* yang dirancang untuk menangkap pergerakan impulsif dengan probabilitas tinggi.
+
+1.  **Generasi Sinyal (Signal Generation)**:
+    - **Indikator Teknis**: Sistem menggunakan gabungan indikator trend (EMA), momentum (MACD, RSI), dan volatilitas (Bollinger Bands) yang diberi bobot.
+    - **Smart Money Concepts (SMC)**: Sinyal diperkuat secara signifikan oleh deteksi *Break of Structure (BOS)*, *Change of Character (CHoCH)*, dan entri pada *Order Block (OB) retest*. Ini adalah inti dari strategi untuk mengidentifikasi sinyal dengan presisi tinggi.
+    - **Signal Score**: Semua faktor di atas digabungkan menjadi satu *Signal Score*. Hanya sinyal dengan skor di atas ambang batas (default: 0.60) yang akan diproses lebih lanjut.
+
+2.  **Validasi Probabilitas (Probabilistic Validation)**:
+    - Setiap sinyal yang lolos kemudian diuji oleh **Monte Carlo Engine**. Engine ini menyimulasikan 5,000 kemungkinan pergerakan harga di masa depan berdasarkan volatilitas historis pair tersebut.
+    - Hasil simulasi memberikan dua metrik krusial:
+        1.  **Win Probability**: Probabilitas harga menyentuh Take Profit sebelum Stop Loss.
+        2.  **Confidence**: Gabungan dari *Win Probability* dan *Signal Score*, yang merepresentasikan keyakinan keseluruhan pada setup trading.
+    - Sinyal harus memenuhi ambang batas `MC_CONFIDENCE_THRESHOLD` dan `MC_MIN_WIN_PROBABILITY` untuk bisa lolos.
+
+3.  **Filter Kontekstual (Contextual Filtering)**:
+    - **HTF Gatekeeper**: Sinyal akan **langsung diblokir** jika berlawanan dengan tren pada timeframe yang lebih tinggi (1 Jam). Ini adalah salah satu filter paling penting untuk menghindari *counter-trend trading* yang berisiko.
+    - **News Blackout**: Menjelang rilis berita ekonomi berdampak tinggi (FOMC, CPI, dll.), sistem akan berhenti membuka posisi baru untuk menghindari volatilitas ekstrem.
+
+4.  **Persetujuan AI (AI Approval)**:
+    - Sinyal terkuat yang lolos semua filter kemudian diserahkan kepada **Gemini 2.5 Pro CIO Agent**.
+    - AI melakukan **Debat Multi-Analis**:
+        - **Analis Bull**: Memberikan argumen terkuat *untuk* mengambil trade.
+        - **Analis Bear**: Memberikan argumen terkuat *melawan* trade tersebut.
+    - AI menganalisis data sinyal, **chart visual**, dan **data historis dari trade serupa (RAG)**.
+    - Trade hanya akan dieksekusi jika mendapat *verdict* `APPROVE`.
+
+5.  **Eksekusi & Manajemen (Execution & Management)**:
+    - Jika disetujui, **BinanceTrader** menghitung ukuran posisi berdasarkan manajemen risiko (`RISK_PER_TRADE`) dan *leverage* yang aman.
+    - Sistem mengeksekusi *market order* dan secara otomatis memasang order *Take Profit* dan *Stop Loss*.
+    - Jika `ENABLE_PARTIAL_TP` aktif, sistem akan menutup 50% posisi di TP1 dan memindahkan SL ke harga entry (*breakeven*), menciptakan "free trade".
+
 ---
 
-## 📁 File Structure
+### 🛠️ Instalasi & Penggunaan
 
+#### 1. Persiapan
+
+- Pastikan Anda memiliki Python 3.9 atau lebih baru.
+- Clone repository ini.
+- Instal semua dependensi yang dibutuhkan:
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+#### 2. Konfigurasi
+
+- Salin file `config.example.py` menjadi `config.py`.
+  ```bash
+  cp config.example.py config.py
+  ```
+- Buka `config.py` dan isi dengan kredensial Anda.
+
+#### 3. Menjalankan Bot
+
+Gunakan skrip helper yang telah disediakan:
+
+- **Memulai Bot (di latar belakang):**
+  ```bash
+  ./start.sh
+  ```
+- **Memeriksa Status:**
+  ```bash
+  ./status.sh
+  ```
+- **Menghentikan Bot:**
+  ```bash
+  ./stop.sh
+  ```
+
+#### 4. Backtesting & Data Historis
+
+- **Download/Update Data Historis (3 Bulan Terakhir):**
+  ```bash
+  ./update_data.sh
+  ```
+- **Menjalankan Backtest (pada data 3 bulan terakhir):**
+  ```bash
+  ./update_backtest.sh
+  ```
+
+> ⚠️ **DISCLAIMER**: Bot ini adalah perangkat lunak yang kompleks dan ditujukan untuk tujuan riset dan edukasi. Trading futures memiliki risiko yang sangat tinggi. Selalu lakukan riset Anda sendiri (DYOR).
+
+</details>
+
+<details>
+<summary><strong>:us: English</strong></summary>
+
+**NERA QUANT** is an autonomous AI algorithmic trading system for **Binance Futures**. It continuously scans the **Top 50 USDT perpetual pairs**, combining technical analysis, **Smart Money Concepts (SMC)**, and **Monte Carlo** probabilistic simulations to identify and execute high-confidence trading opportunities.
+
+Each signal is validated by **Gemini 2.5 Pro**, acting as a *Chief Investment Officer (CIO)*, which conducts a *Bull vs. Bear* debate before approving trade execution.
+
+### 🌟 Key Features
+
+- **Hybrid Strategy**: Combines classic technical indicators (EMA, MACD, RSI) with Smart Money Concepts (BOS, CHoCH, Order Blocks, FVG) for high-quality signals.
+- **Probabilistic Forecasting**: Utilizes a **Monte Carlo Engine** (5,000 simulations per signal) to calculate the profit probability (Win Probability) and validate each setup.
+- **AI-Powered Decision Making**: A **Gemini 2.5 Pro CIO Agent** analyzes each signal, complete with charts and historical data (RAG), then conducts a Bull vs. Bear debate for final approval.
+- **Automated Execution**: Fully integrated with the Binance Futures API for automatic order execution, including dynamic position sizing, partial take profit, and breakeven stop loss.
+- **Comprehensive Risk Management**: Equipped with 13 safety layers, including a *Circuit Breaker*, *News Blackout Filter*, *Spread Protection*, and *Safe Leverage Calculation*.
+- **Self-Adapting System**: Continuously analyzes trading performance to adjust risk per pair (**Adaptive Risk**) and assign weights to more successful strategies (**ε-greedy Weighting**).
+- **Live Dashboard & Notifications**: Features a real-time web interface and Telegram notifications for all trading activities.
+
+---
+
+### 🏗️ Architecture & Workflow
+
+The system runs in multiple separate threads to ensure responsiveness and stability. The main workflow occurs in a *scan cycle* every 15-60 seconds.
+
+#### Workflow Diagram
+
+```mermaid
+graph TD
+    A[Start Scan Cycle] --> B{Fetch Top 50 Pairs};
+    B --> C{Parallel Analysis per Pair};
+    C --> D[1. Compute Indicators & SMC];
+    D --> E[2. Calculate Signal Score];
+    E --> F{Signal Score >= 0.60?};
+    F -- No --> G[Ignore Signal];
+    F -- Yes --> H[3. Run Monte Carlo Engine];
+    H --> I[4. Calculate Confidence & Win Probability];
+    I --> J{Confidence & Win Prob >= Threshold?};
+    J -- No --> G;
+    J -- Yes --> K[5. Send Signal to Gemini CIO Agent];
+    K --> L[6. AI CIO Debate: Bull vs. Bear];
+    L --> M{Verdict == 'APPROVE'?};
+    M -- No --> G;
+    M -- Yes --> N[7. Calculate Position Size & Safe Leverage];
+    N --> O[8. Execute Market Order via Binance API];
+    O --> P[9. Place TP & SL Orders];
+    P --> Q[10. Send Notification to Telegram];
+    Q --> R[11. Save Trade to Database];
+    R --> S[End Scan Cycle];
 ```
-nera-quant/
-│
-├── 🚀 ENTRY POINTS
-│   ├── main.py              ← Entry point + thread orchestration
-│   ├── start.sh             ← Start bot via nohup
-│   ├── stop.sh              ← Stop bot gracefully
-│   └── status.sh            ← Check status & last 20 log lines
-│
-├── 🧠 CORE ENGINE
-│   ├── scanner.py           ← NeraScanner: main orchestration loop
-│   ├── monte_carlo.py       ← Monte Carlo Engine + GBM simulation
-│   ├── indicators.py        ← Technical indicators + SMC detection
-│   ├── trader.py            ← Binance order execution engine
-│   └── market_data.py       ← Market data fetching + pair filtering
-│
-├── 📊 INTELLIGENCE LAYER
-│   ├── analytics_engine.py  ← Pair/session/setup statistics + AI retrospective
-│   ├── database.py          ← SQLite ORM + trade intelligence schema
-│   ├── rag_memory.py        ← RAG pattern memory (cosine similarity)
-│   ├── market_context.py    ← Session detection + HTF bias voting
-│   └── news_filter.py       ← Economic news blackout + X.com FUD scraper
-│
-├── 🤖 AI INTEGRATION
-│   ├── gemini_client.py     ← Gemini 2.5 Pro (text + vision + debate + meta-eval)
-│   └── charting_engine.py   ← mplfinance chart generation for CIO review
-│
-├── 🌐 WEB INTERFACE
-│   ├── api_server.py        ← HTTP REST server (:8000)
-│   └── dashboard.html       ← Live trading dashboard (single-file SPA)
-│
-├── ⚙️ CONFIGURATION
-│   ├── config.py            ← All settings & thresholds (gitignored)
-│   └── config.example.py    ← Template with placeholder values
-│
-├── 🗄️ DATA
-│   ├── trades.db            ← SQLite database (gitignored)
-│   ├── active_trades.json   ← Live position tracker (gitignored)
-│   └── pending_setups.json  ← SMC pending setup tracker (gitignored)
-│
-└── 🧪 SCRATCH / UTILITIES
-    └── scratch/             ← One-off analysis & calibration scripts
-```
+
+#### Trading Strategy Explained
+
+NERA QUANT's strategy is a multi-layered trend-following & mean-reversion system designed to capture high-probability impulsive moves.
+
+1.  **Signal Generation**:
+    - **Technical Indicators**: The system uses a weighted combination of trend (EMA), momentum (MACD, RSI), and volatility (Bollinger Bands) indicators.
+    - **Smart Money Concepts (SMC)**: Signals are significantly strengthened by the detection of *Break of Structure (BOS)*, *Change of Character (CHoCH)*, and entries on *Order Block (OB) retests*. This is the core of the strategy for identifying high-precision signals.
+    - **Signal Score**: All the above factors are combined into a single *Signal Score*. Only signals with a score above a threshold (default: 0.60) are processed further.
+
+2.  **Probabilistic Validation**:
+    - Each qualified signal is then tested by the **Monte Carlo Engine**. This engine simulates 5,000 possible future price paths based on the pair's historical volatility.
+    - The simulation results provide two crucial metrics:
+        1.  **Win Probability**: The probability of the price hitting the Take Profit before the Stop Loss.
+        2.  **Confidence**: A blend of *Win Probability* and *Signal Score*, representing the overall conviction in the trade setup.
+    - A signal must meet the `MC_CONFIDENCE_THRESHOLD` and `MC_MIN_WIN_PROBABILITY` to pass.
+
+3.  **Contextual Filtering**:
+    - **HTF Gatekeeper**: A signal is **immediately blocked** if it goes against the trend on a higher timeframe (1-Hour). This is one of the most critical filters to avoid risky counter-trend trades.
+    - **News Blackout**: Leading up to high-impact economic news releases (FOMC, CPI, etc.), the system will stop opening new positions to avoid extreme volatility.
+
+4.  **AI Approval**:
+    - The strongest signals that pass all filters are then submitted to the **Gemini 2.5 Pro CIO Agent**.
+    - The AI conducts a **Multi-Analyst Debate**:
+        - The **Bull Analyst** makes the strongest case *for* taking the trade.
+        - The **Bear Analyst** makes the strongest case *against* it.
+    - The AI analyzes the signal data, a **visual chart**, and **historical data from similar trades (RAG)**.
+    - The trade is only executed if it receives an `APPROVE` verdict.
+
+5.  **Execution & Management**:
+    - If approved, the **BinanceTrader** calculates the position size based on risk management (`RISK_PER_TRADE`) and a safe leverage.
+    - The system executes a *market order* and automatically places *Take Profit* and *Stop Loss* orders.
+    - If `ENABLE_PARTIAL_TP` is active, the system closes 50% of the position at TP1 and moves the SL to the entry price (*breakeven*), creating a "free trade".
 
 ---
 
-## ⚙️ Configuration
+### 🛠️ Installation & Usage
 
-Copy `config.example.py` ke `config.py` dan isi dengan credentials kamu:
+#### 1. Prerequisites
 
-```bash
-cp config.example.py config.py
-nano config.py
-```
+- Ensure you have Python 3.9 or newer.
+- Clone this repository.
+- Install all required dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
 
-Key settings:
+#### 2. Configuration
 
-| Setting | Default | Description |
-|---|---|---|
-| `AUTO_TRADE` | `True` | Enable live order execution |
-| `LEVERAGE` | `20` | Target leverage (auto-capped per pair) |
-| `RISK_PER_TRADE` | `0.02` | 2% risk per trade |
-| `MAX_OPEN_POSITIONS` | `5` | Max simultaneous positions |
-| `MC_CONFIDENCE_THRESHOLD` | `0.58` | Min confidence to trade |
-| `SMC_MC_CONFIDENCE_THRESHOLD` | `0.60` | Min confidence for SMC setups |
-| `MIN_SIGNAL_SCORE` | `0.60` | Min composite signal score |
-| `MC_MIN_WIN_PROBABILITY` | `0.45` | Min win probability |
-| `SCAN_INTERVAL_SECONDS` | `15` | Scan cycle interval |
-| `SCAN_TIMEFRAMES` | `['15m', '1h']` | Timeframes to scan |
-| `SMC_MODE` | `True` | Enable SMC detection |
-| `HTF_STRICT_GATEKEEPER` | `True` | Block counter-trend trades |
-| `ENABLE_CIO_AGENT` | `True` | Enable Gemini CIO review |
-| `ENABLE_CIO_DEBATE` | `True` | Enable bull vs bear debate |
-| `ENABLE_PARTIAL_TP` | `True` | Enable TP1/TP2 split |
-| `CIRCUIT_BREAKER_ENABLED` | `True` | Enable circuit breaker |
-| `NEWS_BLACKOUT_ENABLED` | `True` | Enable news blackout filter |
-| `ADAPTIVE_RISK` | `True` | Scale risk by pair win-rate |
-| `ENABLE_AI_RETROSPECTIVE` | `True` | Enable weekly AI report |
+- Copy the `config.example.py` file to `config.py`.
+  ```bash
+  cp config.example.py config.py
+  ```
+- Open `config.py` and fill in your credentials.
 
----
+#### 3. Running the Bot
 
-## 🚀 Installation & Usage
+Use the provided helper scripts:
 
-### Prerequisites
+- **Start the Bot (in the background):**
+  ```bash
+  ./start.sh
+  ```
+- **Check Status:**
+  ```bash
+  ./status.sh
+  ```
+- **Stop the Bot:**
+  ```bash
+  ./stop.sh
+  ```
 
-```bash
-python3 --version  # 3.10+
-pip install -r requirements.txt
-```
+#### 4. Backtesting & Historical Data
 
-### Dependencies
+- **Download/Update Historical Data (Last 3 Months):**
+  ```bash
+  ./update_data.sh
+  ```
+- **Run Backtest (on the last 3 months of data):**
+  ```bash
+  ./update_backtest.sh
+  ```
 
-```
-python-binance==1.0.19    # Binance API client
-requests==2.31.0          # HTTP requests
-numpy==1.26.4             # Numerical computation
-pandas==2.2.2             # DataFrame operations
-ta==0.11.0                # Technical analysis library
-aiohttp==3.9.5            # Async HTTP
-colorlog==6.8.2           # Colored logging
-google-genai==1.16.0      # Gemini AI client
-Pillow==10.4.0            # Image processing for charts
-mplfinance==0.12.10b0     # Candlestick chart generation
-matplotlib==3.9.2         # Chart rendering backend
-ntscraper==0.3.8          # X.com/Nitter scraper for FUD detection
-schedule==1.2.2           # Task scheduling
-```
+> ⚠️ **DISCLAIMER**: This bot is a complex piece of software intended for research and educational purposes. Futures trading involves a very high risk of capital loss. Always do your own research (DYOR).
 
-### Start / Stop
-
-```bash
-# Start bot (background, nohup)
-./start.sh
-
-# Check status
-./status.sh
-
-# Stop bot
-./stop.sh
-
-# View live logs
-tail -f nera_quant.log
-```
-
-### Manual run (foreground)
-
-```bash
-python3 main.py
-```
-
----
-
-## 📡 Dashboard & Notifications
-
-### Web Dashboard (`:8000`)
-
-REST API endpoints:
-
-| Endpoint | Description |
-|---|---|
-| `GET /` | Serve `dashboard.html` |
-| `GET /api/state` | Current scan state (count, last scan, signals) |
-| `GET /api/balance` | Binance wallet balance |
-| `GET /api/positions` | Open positions |
-| `GET /api/nodes` | Signal graph nodes & edges |
-| `GET /api/pair-stats` | Pair personality stats |
-| `GET /api/session-stats` | Session win rate stats |
-| `GET /api/setup-stats` | Setup type win rate stats |
-| `GET /api/hourly-stats` | Hourly UTC performance heatmap |
-| `GET /api/intelligence/{symbol}` | Full intelligence profile for a pair |
-
-### Telegram Notifications
-
-| Event | Notification |
-|---|---|
-| Bot startup | System info + mode |
-| Signal found | Confidence bar, entry/TP/SL, win prob |
-| Trade executed | Order IDs, leverage, margin used + chart |
-| TP1 hit | Partial close details + breakeven SL |
-| Early close | Reason, estimated PnL |
-| Pending setup created | Trigger price, invalidation price |
-| Pending setup triggered | Full trade details |
-| Pending setup invalidated | Reason |
-| Circuit breaker | Reason + resume time |
-| Scan summary | Every 10 scans |
-| Weekly AI report | Gemini retrospective analysis |
-| Error | Error message |
-
----
-
-## 🗄️ Database Schema
-
-SQLite database (`trades.db`) dengan 9 tabel:
-
-| Table | Purpose |
-|---|---|
-| `trades` | Raw trade records synced from Binance income log |
-| `income_log` | Full Binance income history (REALIZED_PNL, COMMISSION, etc.) |
-| `sync_state` | Last sync timestamp per income type |
-| `trade_intelligence` | Rich per-trade analytics (30+ fields: session, SMC signals, MAE/MFE, CIO verdict) |
-| `pair_stats` | Aggregated pair personality (win rate, best session, adaptive risk) |
-| `session_stats` | Win rate per session × timeframe combination |
-| `setup_stats` | Win rate per setup type (INSTANT, SMC_OB_PULLBACK) |
-| `auto_blacklist` | Chronically underperforming pairs/sessions |
-| `pattern_embeddings` | RAG memory: 19-feature float32 embeddings for cosine similarity retrieval |
-
----
-
-## 🤖 AI Integration (Gemini 2.5 Pro)
-
-### CIO Debate (`ask_gemini_debate`)
-
-Before every trade execution, two AI analysts debate:
-- **Bull Analyst**: argues for the trade
-- **Bear Analyst**: argues against
-- **CIO**: renders final `APPROVE` or `REJECT` verdict
-
-Context includes: signal metrics, chart image (if `ENABLE_VISUAL_CHECK=True`), and top-5 similar historical patterns from RAG memory.
-
-### Visual Chart Review (`charting_engine.py`)
-
-Generates a candlestick chart with:
-- Entry price line (blue dashed)
-- Take Profit line (green)
-- Stop Loss line (red)
-- Order Block zone (purple fill, only when OB levels exist)
-
-Chart is sent to Gemini for visual analysis and optionally to Telegram.
-
-### Meta-Feedback Loop (`ask_gemini_meta_eval`)
-
-After each trade closes, Gemini evaluates whether the CIO debate verdict was correct given the actual outcome. Results stored in `trade_intelligence.meta_feedback` for continuous learning.
-
-### Weekly AI Retrospective (`run_weekly_ai_retrospective`)
-
-Every 7 days, Gemini reviews the last 50 closed trades and provides:
-- Analysis of losing trade patterns
-- Common characteristics of winning trades
-- 2-3 specific parameter adjustment suggestions
-
-Report is sent to Telegram.
-
----
-
-## 🔴 Switch to Live Trading
-
-1. Ganti `BINANCE_BASE_URL` di `config.py` ke `https://fapi.binance.com`
-2. Ganti API key & secret ke credentials akun live kamu
-3. Set `AUTO_TRADE = True`
-4. Mulai dengan `RISK_PER_TRADE = 0.01` (1%) untuk live trading awal
-5. Monitor dashboard dan Telegram notifications
-
-> ⚠️ **DISCLAIMER**: Bot ini untuk tujuan edukasi dan penelitian. Trading futures mengandung risiko tinggi kehilangan modal. Gunakan dengan bijak dan selalu DYOR.
-
----
-
-## 🐛 Bug Fixes & Changelog
-
-### v1.1.0 (Latest)
-
-**Bug Fixes:**
-
-| Bug | File | Fix |
-|---|---|---|
-| `fill_between=None` crash di mplfinance | `charting_engine.py` | Hanya pass `fill_between` ke `mpf.plot()` ketika OB levels tersedia. Sebelumnya semua chart generation gagal. |
-| `send_trade_executed()` arity mismatch | `notifier.py` | Tambah parameter `chart_path=None`. Scanner memanggil dengan 3 args tapi fungsi hanya menerima 2. |
-| `execute_partial_close()` wrong args di blackout path | `scanner.py` | Fix: hapus `partial_pct=0.0` (tidak ada di signature), tambah `quantity` yang hilang. |
-| RAG features selalu empty dict | `scanner.py` | Fix: `active_trade` adalah dict, bukan object. Ganti `getattr(active_trade, 'indicator_breakdown', None)` → `active_trade.get('indicator_breakdown')`. |
-| `indicator_breakdown` tidak disimpan ke `active_trades` | `scanner.py` | Tambah `indicator_breakdown`, `risk_reward`, dan `session` ke kedua active_trades dict (INSTANT + SMC_OB_PULLBACK). |
-| Weekly retrospective tidak pernah berjalan | `main.py` | Tambah background thread `_run_weekly_retrospective_loop()` yang berjalan setiap 7 hari. |
-| Missing dependencies di `requirements.txt` | `requirements.txt` | Tambah: `google-genai`, `Pillow`, `mplfinance`, `matplotlib`, `ntscraper`. |
-
----
-
-*NERA QUANT — Built with ❤️ for algorithmic trading research*
+</details>

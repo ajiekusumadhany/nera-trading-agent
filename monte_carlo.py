@@ -422,13 +422,13 @@ class MonteCarloEngine:
 
             # A. FVG Gravity: tarikan magnet ke arah FVG
             if SMC_MODE:
-                if is_long and fvg_dir == 1 and fvg_top > price:
-                    # Bullish FVG di atas bertindak sebagai magnet
+                if is_long and fvg_dir == -1 and fvg_bot > price:
+                    # Bearish FVG di atas bertindak sebagai magnet penarik naik
                     fvg_center = (fvg_top + fvg_bot) / 2.0
                     pull = 0.03 * (fvg_center - prev_price) / prev_price
                     step_mu += np.clip(pull, 0.0, 0.015)
-                elif not is_long and fvg_dir == -1 and fvg_bot < price:
-                    # Bearish FVG di bawah bertindak sebagai magnet
+                elif not is_long and fvg_dir == 1 and fvg_top < price:
+                    # Bullish FVG di bawah bertindak sebagai magnet penarik turun
                     fvg_center = (fvg_top + fvg_bot) / 2.0
                     pull = 0.03 * (fvg_center - prev_price) / prev_price
                     step_mu += np.clip(pull, -0.015, 0.0)
@@ -440,15 +440,15 @@ class MonteCarloEngine:
             # B. OB Elastic Barrier (Support/Resistance)
             if SMC_MODE:
                 if is_long and bull_ob_top > 0.0:
-                    # Jika harga LONG menyentuh bagian atas Bullish OB, ada 75% peluang memantul naik
+                    # Jika harga LONG menyentuh bagian atas Bullish OB, ada 45% peluang memantul naik
                     entered_ob = (prev_price > bull_ob_top) & (next_price <= bull_ob_top) & (next_price >= bull_ob_bot)
-                    bounce = np.random.random(self.n_simulations) < 0.75
+                    bounce = np.random.random(self.n_simulations) < 0.45
                     bounce_shock = np.abs(np.random.normal(1.5, 0.5, self.n_simulations)) * sigma
                     next_price = np.where(entered_ob & bounce, bull_ob_top * np.exp(bounce_shock), next_price)
                 elif not is_long and bear_ob_bot > 0.0:
-                    # Jika harga SHORT menyentuh bagian bawah Bearish OB, ada 75% peluang memantul turun
+                    # Jika harga SHORT menyentuh bagian bawah Bearish OB, ada 45% peluang memantul turun
                     entered_ob = (prev_price < bear_ob_bot) & (next_price >= bear_ob_bot) & (next_price <= bear_ob_top)
-                    bounce = np.random.random(self.n_simulations) < 0.75
+                    bounce = np.random.random(self.n_simulations) < 0.45
                     bounce_shock = -np.abs(np.random.normal(1.5, 0.5, self.n_simulations)) * sigma
                     next_price = np.where(entered_ob & bounce, bear_ob_bot * np.exp(bounce_shock), next_price)
 
@@ -641,6 +641,11 @@ class MonteCarloEngine:
 
         # Normalize score
         score = min(max(score, 0.0), 1.0)
+
+        # Prevent single-indicator inflation: if active_indicators < 3, scale down the score
+        if active_indicators < 3 and direction != 'NEUTRAL':
+            participation_ratio = active_indicators / 3.0
+            score *= participation_ratio
 
         # Filter minimum composite score
         if score < 0.35:

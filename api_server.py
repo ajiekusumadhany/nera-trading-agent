@@ -250,9 +250,36 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path == '/api/setup-stats':
             import database as db
             self._json(db.get_setup_stats())
+        elif path == '/api/ticker':
+            try:
+                import requests
+                resp = requests.get('https://fapi.binance.com/fapi/v1/ticker/24hr', timeout=5)
+                if resp.status_code == 200:
+                    self._json(resp.json())
+                else:
+                    self._json([])
+            except Exception as e:
+                logger.error(f"Error fetching ticker: {e}")
+                self._json([])
         elif path == '/api/hourly-stats':
             import database as db
             self._json(db.get_hourly_stats())
+        elif path == '/api/backtest-stats':
+            import sqlite3
+            import os
+            try:
+                db_path = os.path.join(os.path.dirname(__file__), 'pair_statistics.db')
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    rows = conn.execute("SELECT * FROM pair_stats ORDER BY win_rate DESC").fetchall()
+                    cols = ['symbol', 'total_trades', 'wins', 'losses', 'win_rate', 'profit_factor', 'last_updated']
+                    res = [dict(zip(cols, r)) for r in rows]
+                    conn.close()
+                    self._json(res)
+                else:
+                    self._json([])
+            except Exception as e:
+                self._json({'error': str(e)})
         elif path.startswith('/api/intelligence/'):
             parts = path.split('/')
             symbol = parts[-1] if len(parts) > 3 else ''

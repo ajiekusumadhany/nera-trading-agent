@@ -1000,16 +1000,19 @@
       letter-spacing: 1px;
       box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.05);
     }
+
     .tab-btn:hover {
       border-color: var(--text);
       background: var(--border);
     }
+
     .tab-btn.active {
       background: var(--text);
       color: var(--bg);
       border-color: var(--text);
       box-shadow: none;
     }
+
     #cbAlertBanner {
       border-width: 1px;
       border-style: solid;
@@ -1027,7 +1030,7 @@
     <div class="topbar-left">
       <div class="logo">NERA QUANT <span>· TRADING AI</span></div>
       <div class="live-badge">LIVE</div>
-      <div class="scan-info">SCAN #<span id="scanCount">0</span> &nbsp;|&nbsp; TOP 100 PAIRS</div>
+      <div class="scan-info">SCAN #<span id="scanCount">0</span> &nbsp;|&nbsp; TOP 50 PAIRS</div>
     </div>
     <div class="topbar-right">
       <div style="color:var(--muted);font-size:11px;font-weight:bold;">&nbsp; ISOLATED &nbsp;|&nbsp; 20x</div>
@@ -1060,208 +1063,239 @@
   <!-- NAVIGATION TABS -->
   <div class="navigation-tabs" style="display:flex; gap:12px; padding: 16px 24px 0 24px; background: var(--bg);">
     <button id="btnTabDashboard" class="tab-btn active" onclick="switchTab('dashboard')">DASHBOARD</button>
-    <button id="btnTabAnalytics" class="tab-btn" onclick="switchTab('analytics')">DECISION INTELLIGENCE ANALYTICS</button>
+    <button id="btnTabAnalytics" class="tab-btn" onclick="switchTab('analytics')">DECISION INTELLIGENCE
+      ANALYTICS</button>
   </div>
 
   <div id="tab-dashboard-content">
-  <!-- HERO PNL -->
-  <div class="hero">
-    <div class="hero-left">
-      <div class="card-title" style="justify-content:flex-start; margin-bottom: 10px;"><span class="dot"></span>ALL-TIME
-        REALIZED PNL</div>
-      <div class="hero-pnl" id="heroPnl">$0.00</div>
-      <div class="hero-stats">
-        <span class="val" id="heroTrades">0</span> trades · ALL · <span class="val" id="heroWinRate">0%</span> win ·
-        <span class="val" id="heroOpen">0</span> open
-      </div>
-    </div>
-    <div class="hero-right">
-      <div class="card-title" style="margin-bottom: 8px; justify-content: flex-start;"><span class="dot"></span>PNL
-        CURVE</div>
-      <canvas id="pnlCanvas" style="height: 110px; width: 100%;"></canvas>
-    </div>
-  </div>
-
-  <div class="main">
-
-    <!-- ROW 1: Wallet & Stats -->
-    <div class="row row-3">
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>WALLET BALANCE</div>
-        <div class="balance-big" id="walletBalance">$0.00</div>
-        <div class="balance-row">
-          <div class="balance-item"><label>AVAILABLE</label><span id="availBalance" class="pos">$0.00</span></div>
-          <div class="balance-item"><label>UNREALIZED PNL</label><span id="unrealPnl">$0.00</span></div>
+    <!-- HERO PNL -->
+    <div class="hero">
+      <div class="hero-left">
+        <div class="card-title" style="justify-content:flex-start; margin-bottom: 10px;"><span
+            class="dot"></span>ALL-TIME
+          REALIZED PNL</div>
+        <div class="hero-pnl" id="heroPnl">$0.00</div>
+        <div class="hero-stats">
+          <span class="val" id="heroTrades">0</span> trades · ALL · <span class="val" id="heroWinRate">0%</span> win ·
+          <span class="val" id="heroOpen">0</span> open
         </div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>TRADES OVERVIEW</div>
-        <div class="stat-value" id="totalTrades">0</div>
-        <div class="stat-sub">TOTAL EXECUTED</div>
-        <div class="stat-change">
-          <span class="pos" id="winTrades">0W</span> /
-          <span class="neg" id="lossTrades">0L</span>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>OPEN POSITIONS</div>
-        <div class="stat-value" id="openCount">0</div>
-        <div class="stat-sub">ACTIVE NOW</div>
-        <div class="stat-change neu" id="lastScan">LAST SCAN: —</div>
+      <div class="hero-right">
+        <div class="card-title" style="margin-bottom: 8px; justify-content: flex-start;"><span class="dot"></span>PNL
+          CURVE</div>
+        <canvas id="pnlCanvas" style="height: 110px; width: 100%;"></canvas>
       </div>
     </div>
 
-    <!-- ROW 2: Node Graph + MC Simulation & Scan Progress -->
-    <div class="row row-21">
-      <div class="card node-graph-card">
-        <div class="card-title"><span class="dot"></span>MiroFish · Relationship Graph Simulation
-          <span
-            style="margin-left:16px;color:var(--muted);font-size:10px;border-left:1px solid var(--border);padding-left:16px;">
-            <span style="color:var(--green)">●</span> LONG &nbsp;
-            <span style="color:var(--red)">●</span> SHORT &nbsp;
-            <span style="color:var(--muted)">●</span> NEUTRAL &nbsp;
-            size = confidence
-          </span>
-        </div>
-        <canvas id="nodeCanvas"></canvas>
-        <!-- Hover: simpel label -->
-        <div class="node-tooltip" id="nodeTooltip"></div>
-        <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;font-weight:bold;color:var(--text)">
-          <span id="nodeStats">—</span>
-        </div>
-      </div>
-      <div style="display: flex; flex-direction: column; gap: 16px; height: 100%;">
-        <div class="card" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
-          <div class="card-title"><span class="dot"></span>MONTE CARLO SIMULATION</div>
-          <div class="mc-canvas-wrap"
-            style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 180px;">
-            <canvas id="mcCanvas" style="height: 100%; width: 100%;"></canvas>
-          </div>
-          <div class="mc-stats">
-            <div class="mc-stat">
-              <div class="mc-stat-val pos" id="mcConf">—</div>
-              <div class="mc-stat-lbl">CONFIDENCE</div>
-            </div>
-            <div class="mc-stat">
-              <div class="mc-stat-val" id="mcWin">—</div>
-              <div class="mc-stat-lbl">WIN PROB</div>
-            </div>
-            <div class="mc-stat">
-              <div class="mc-stat-val" id="mcPaths">—</div>
-              <div class="mc-stat-lbl">PROFIT PATHS</div>
-            </div>
+    <div class="main">
+
+      <!-- ROW 1: Wallet & Stats -->
+      <div class="row row-3">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>WALLET BALANCE</div>
+          <div class="balance-big" id="walletBalance">$0.00</div>
+          <div class="balance-row">
+            <div class="balance-item"><label>AVAILABLE</label><span id="availBalance" class="pos">$0.00</span></div>
+            <div class="balance-item"><label>UNREALIZED PNL</label><span id="unrealPnl">$0.00</span></div>
           </div>
         </div>
-        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-          <div class="card-title"><span class="dot"></span>SCAN PROGRESS</div>
-          <div class="scan-bar-wrap">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-weight:bold;">
-              <span style="color:var(--text);font-size:10px;">SCANNING TOP 100 PAIRS</span>
-              <span style="color:var(--green);font-size:10px;" id="scanPct">0%</span>
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>TRADES OVERVIEW</div>
+          <div class="stat-value" id="totalTrades">0</div>
+          <div class="stat-sub">TOTAL EXECUTED</div>
+          <div class="stat-change">
+            <span class="pos" id="winTrades">0W</span> /
+            <span class="neg" id="lossTrades">0L</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>OPEN POSITIONS</div>
+          <div class="stat-value" id="openCount">0</div>
+          <div class="stat-sub">ACTIVE NOW</div>
+          <div class="stat-change neu" id="lastScan">LAST SCAN: —</div>
+        </div>
+      </div>
+
+      <!-- ROW 2: Node Graph + MC Simulation & Scan Progress -->
+      <div class="row row-21">
+        <div class="card node-graph-card">
+          <div class="card-title"><span class="dot"></span>MiroFish · Relationship Graph Simulation
+            <span
+              style="margin-left:16px;color:var(--muted);font-size:10px;border-left:1px solid var(--border);padding-left:16px;">
+              <span style="color:var(--green)">●</span> LONG &nbsp;
+              <span style="color:var(--red)">●</span> SHORT &nbsp;
+              <span style="color:var(--muted)">●</span> NEUTRAL &nbsp;
+              size = confidence
+            </span>
+          </div>
+          <canvas id="nodeCanvas"></canvas>
+          <!-- Hover: simpel label -->
+          <div class="node-tooltip" id="nodeTooltip"></div>
+          <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;font-weight:bold;color:var(--text)">
+            <span id="nodeStats">—</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px; height: 100%;">
+          <div class="card" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="card-title"><span class="dot"></span>MONTE CARLO SIMULATION</div>
+            <div class="mc-canvas-wrap"
+              style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 180px;">
+              <canvas id="mcCanvas" style="height: 100%; width: 100%;"></canvas>
             </div>
-            <div class="scan-bar">
-              <div class="scan-fill" id="scanFill" style="width:0%"></div>
+            <div class="mc-stats">
+              <div class="mc-stat">
+                <div class="mc-stat-val pos" id="mcConf">—</div>
+                <div class="mc-stat-lbl">CONFIDENCE</div>
+              </div>
+              <div class="mc-stat">
+                <div class="mc-stat-val" id="mcWin">—</div>
+                <div class="mc-stat-lbl">WIN PROB</div>
+              </div>
+              <div class="mc-stat">
+                <div class="mc-stat-val" id="mcPaths">—</div>
+                <div class="mc-stat-lbl">PROFIT PATHS</div>
+              </div>
             </div>
           </div>
-          <div class="scan-pairs" id="scanPairs"></div>
+          <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="card-title"><span class="dot"></span>SCAN PROGRESS</div>
+            <div class="scan-bar-wrap">
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-weight:bold;">
+                <span style="color:var(--text);font-size:10px;">SCANNING TOP 50 PAIRS</span>
+                <span style="color:var(--green);font-size:10px;" id="scanPct">0%</span>
+              </div>
+              <div class="scan-bar">
+                <div class="scan-fill" id="scanFill" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="scan-pairs" id="scanPairs"></div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- ROW 3: Signal Feed -->
-    <div class="row">
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>SIGNAL FEED · REAL-TIME</div>
-        <div class="signal-list" id="signalList">
-          <div class="empty">Waiting for signals...</div>
+      <!-- ROW 3: Signal Feed -->
+      <div class="row">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>SIGNAL FEED · REAL-TIME</div>
+          <div class="signal-list" id="signalList">
+            <div class="empty">Waiting for signals...</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- ROW 4: Positions + Algo Orders -->
-    <div class="row row-21">
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>LIVE POSITIONS</div>
-        <div class="table-wrap" style="max-height: 260px; overflow-y: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>SYMBOL</th>
-                <th>SIDE</th>
-                <th>QTY</th>
-                <th>ENTRY</th>
-                <th>MARK</th>
-                <th>PNL</th>
-                <th>PNL%</th>
-                <th>LIQ</th>
-                <th>LEV</th>
-              </tr>
-            </thead>
-            <tbody id="positionsBody">
-              <tr>
-                <td colspan="9" class="empty">No open positions</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- ROW 4: Positions + Algo Orders -->
+      <div class="row row-21">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>LIVE POSITIONS</div>
+          <div class="table-wrap" style="max-height: 260px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>SYMBOL</th>
+                  <th>SIDE</th>
+                  <th>QTY</th>
+                  <th>ENTRY</th>
+                  <th>MARK</th>
+                  <th>PNL</th>
+                  <th>PNL%</th>
+                  <th>LIQ</th>
+                  <th>LEV</th>
+                </tr>
+              </thead>
+              <tbody id="positionsBody">
+                <tr>
+                  <td colspan="9" class="empty">No open positions</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; height: 100%;">
+          <div class="card-title"><span class="dot"></span>ALGO ORDERS (TP/SL)</div>
+          <div class="order-list" id="algoOrdersList">
+            <div class="empty">No active orders</div>
+          </div>
         </div>
       </div>
-      <div class="card" style="display: flex; flex-direction: column; height: 100%;">
-        <div class="card-title"><span class="dot"></span>ALGO ORDERS (TP/SL)</div>
-        <div class="order-list" id="algoOrdersList">
-          <div class="empty">No active orders</div>
-        </div>
-      </div>
-    </div>
 
-    <!-- ROW 6: Trade History & Market Snapshot -->
-    <div class="row row-21">
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>TRADE HISTORY (LAST 50 CLOSED TRADES)</div>
-        <div class="table-wrap" style="max-height: 280px; overflow-y: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>SYMBOL</th>
-                <th>SIDE</th>
-                <th>QTY</th>
-                <th>ENTRY PRICE</th>
-                <th>EXIT PRICE</th>
-                <th>REALIZED PNL</th>
-                <th>CLOSE TIME</th>
-              </tr>
-            </thead>
-            <tbody id="historyBody">
-              <tr>
-                <td colspan="7" class="empty">No closed trades yet</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- ROW 6: Trade History & Market Snapshot -->
+      <div class="row row-21">
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>TRADE HISTORY (LAST 50 CLOSED TRADES)</div>
+          <div class="table-wrap" style="max-height: 280px; overflow-y: auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>SYMBOL</th>
+                  <th>SIDE</th>
+                  <th>QTY</th>
+                  <th>ENTRY PRICE</th>
+                  <th>EXIT PRICE</th>
+                  <th>REALIZED PNL</th>
+                  <th>CLOSE TIME</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody">
+                <tr>
+                  <td colspan="7" class="empty">No closed trades yet</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>MARKET SNAPSHOT</div>
+          <div id="marketSnapshotList" style="display:flex; flex-direction:column; gap:8px;">
+            <div class="empty">Loading market data...</div>
+          </div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title"><span class="dot"></span>MARKET SNAPSHOT</div>
-        <div id="marketSnapshotList" style="display:flex; flex-direction:column; gap:8px;">
-          <div class="empty">Loading market data...</div>
-        </div>
-      </div>
-    </div>
 
-  </div><!-- /main -->
+    </div><!-- /main -->
   </div><!-- /tab-dashboard-content -->
 
   <!-- tab-analytics-content -->
   <div id="tab-analytics-content" style="display: none;" class="main">
-    
+
     <!-- CIRCUIT BREAKER / GLOBAL DI SUMMARY STATUS BANNER -->
     <div class="row">
-      <div class="card" id="cbAlertBanner" style="border: 2px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: space-between; gap: 16px; transition: all 0.3s ease;">
+      <div class="card" id="cbAlertBanner"
+        style="border: 2px solid var(--border); background: var(--bg3); display: flex; align-items: center; justify-content: space-between; gap: 16px; transition: all 0.3s ease;">
         <div>
-          <div class="card-title" id="cbAlertBadge" style="margin-bottom: 6px;"><span class="dot" style="background: var(--green);"></span>CIRCUIT BREAKER STATUS</div>
-          <div style="font-size: 14px; font-weight: bold;" id="cbStatusText">Sistem berjalan normal. Sinyal trading diproses secara real-time.</div>
+          <div class="card-title" id="cbAlertBadge" style="margin-bottom: 6px;"><span class="dot"
+              style="background: var(--green);"></span>CIRCUIT BREAKER STATUS</div>
+          <div style="font-size: 14px; font-weight: bold;" id="cbStatusText">Sistem berjalan normal. Sinyal trading
+            diproses secara real-time.</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 10px; color: var(--muted); font-weight: bold;">CONSECUTIVE LOSSES</div>
           <div style="font-size: 32px; font-family: var(--font-big); font-weight: bold;" id="cbLossesCount">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 1.5: Backtest Engine Stats -->
+    <div class="row">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>HISTORICAL BACKTEST STATISTICS (3 MONTH)</div>
+        <div class="table-wrap" style="max-height: 400px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>SYMBOL</th>
+                <th>TOTAL TRADES</th>
+                <th>WINS</th>
+                <th>LOSSES</th>
+                <th>WIN RATE</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="backtestStatsBody">
+              <tr>
+                <td colspan="6" class="empty">Loading backtest stats...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1293,7 +1327,7 @@
           </table>
         </div>
       </div>
-      
+
       <div style="display: flex; flex-direction: column; gap: 16px; height: 100%;">
         <div class="card" style="flex: 1;">
           <div class="card-title"><span class="dot"></span>SETUP TYPE PERFORMANCE</div>
@@ -1315,7 +1349,7 @@
             </table>
           </div>
         </div>
-        
+
         <div class="card" style="flex: 1;">
           <div class="card-title"><span class="dot"></span>SESSION PERFORMANCE</div>
           <div class="table-wrap" style="overflow-y: auto;">
@@ -1345,10 +1379,12 @@
       <div class="card">
         <div class="card-title"><span class="dot"></span>HOURLY WIN RATE DISTRIBUTION (HEAT MAP UTC)</div>
         <div style="margin-top: 16px; overflow-x: auto;">
-          <div id="hourlyHeatmapGrid" style="display: grid; grid-template-columns: repeat(24, 1fr); gap: 6px; min-width: 800px;">
+          <div id="hourlyHeatmapGrid"
+            style="display: grid; grid-template-columns: repeat(24, 1fr); gap: 6px; min-width: 800px;">
             <!-- Render 24 hour blocks -->
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 10px; color: var(--muted); font-weight: bold;">
+          <div
+            style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 10px; color: var(--muted); font-weight: bold;">
             <span>00:00 UTC</span>
             <span>06:00 UTC</span>
             <span>12:00 UTC</span>
@@ -1365,7 +1401,8 @@
         <div class="card-title"><span class="dot"></span>RAW INTELLIGENCE METRIC EXCURSIONS (MAE & MFE LOGS)</div>
         <div style="margin-bottom: 12px; display: flex; gap: 12px; align-items: center;">
           <label style="font-weight: bold; font-size: 11px;">FILTER BY PAIR:</label>
-          <select id="intelligenceSymbolFilter" onchange="loadIntelligenceLogs(this.value)" style="background: var(--bg3); border: 1px solid var(--border); font-family: var(--font); font-size: 11px; padding: 4px 8px; border-radius: 2px; font-weight: bold;">
+          <select id="intelligenceSymbolFilter" onchange="loadIntelligenceLogs(this.value)"
+            style="background: var(--bg3); border: 1px solid var(--border); font-family: var(--font); font-size: 11px; padding: 4px 8px; border-radius: 2px; font-weight: bold;">
             <option value="">Select a pair...</option>
           </select>
         </div>
@@ -1624,22 +1661,39 @@
     }
 
     function renderScanProgress() {
-      const pairs = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT',
+      // Ambil pairs dari sinyal aktif + fallback ke top pairs umum
+      const topPairs = [
+        'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT',
         'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT', 'MATICUSDT', 'LTCUSDT',
-        'UNIUSDT', 'ATOMUSDT', 'ETCUSDT', 'XLMUSDT', 'ALGOUSDT', 'VETUSDT',
-        'FILUSDT', 'TRXUSDT', 'AAVEUSDT', 'MKRUSDT', 'COMPUSDT', 'SUSHIUSDT',
-        'YFIUSDT', 'SNXUSDT', 'CRVUSDT', 'BALUSDT', 'RENUSDT', 'KNCUSDT'];
+        'UNIUSDT', 'ATOMUSDT', 'ETCUSDT', 'XLMUSDT', 'TRXUSDT', 'AAVEUSDT',
+        'NEARUSDT', 'APTUSDT', 'ARBUSDT', 'OPUSDT', 'INJUSDT', 'SUIUSDT',
+        'SEIUSDT', 'TIAUSDT', 'WLDUSDT', 'ORDIUSDT', 'STXUSDT', 'RUNEUSDT',
+        'LDOUSDT', 'RNDRUSDT', 'FETUSDT', 'AGIXUSDT', 'OCEANUSDT', 'GRTUSDT',
+        'FILUSDT', 'ARUSDT', 'STORJUSDT', 'MASKUSDT', 'ENSUSDT', 'IMXUSDT',
+        'SANDUSDT', 'MANAUSDT', 'AXSUSDT', 'GALAUSDT', 'APEUSDT', 'GMTUSDT',
+        'FTMUSDT', 'ALGOUSDT'
+      ];
 
       const signals = new Set((state.signals || []).map(s => s.symbol));
-      const pct = Math.min(100, ((state.scan_count || 0) % 60) / 60 * 100);
+
+      // Hitung countdown real: waktu sejak last_scan vs SCAN_INTERVAL (15s)
+      const SCAN_INTERVAL = 15;
+      let pct = 0;
+      if (state.last_scan) {
+        const lastMs = new Date(state.last_scan).getTime();
+        const elapsed = (Date.now() - lastMs) / 1000;
+        pct = Math.min(100, (elapsed / SCAN_INTERVAL) * 100);
+      }
       $('scanFill').style.width = pct + '%';
       $('scanPct').textContent = Math.round(pct) + '%';
 
       const el = $('scanPairs');
-      el.innerHTML = pairs.map(p => {
-        const cls = signals.has(p) ? 'signal' : (Math.random() > 0.7 ? 'active' : '');
-        return `<span class="pair-chip ${cls}">${p.replace('USDT', '')}</span>`;
-      }).join('');
+      if (el) {
+        el.innerHTML = topPairs.map(p => {
+          const cls = signals.has(p) ? 'signal' : '';
+          return `<span class="pair-chip ${cls}">${p.replace('USDT', '')}</span>`;
+        }).join('');
+      }
     }
 
     // ── Monte Carlo Canvas ─────────────────────────────────────────────
@@ -1843,7 +1897,7 @@
     async function fetchTicker() {
       try {
         const pairs = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'BNBUSDT', 'XRPUSDT', 'DOGEUSDT', 'AVAXUSDT', 'LINKUSDT'];
-        const r = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+        const r = await fetch('/api/ticker');
         const data = await r.json();
         const map = {};
         data.forEach(t => { map[t.symbol] = t; });
@@ -2361,27 +2415,55 @@
     }
 
     // ── Analytics Fetch ─────────────────────────────────────────────────
-    let analyticsState = { pairStats: [], sessionStats: [], setupStats: [], hourlyStats: [] };
+    let analyticsState = { pairStats: [], sessionStats: [], setupStats: [], hourlyStats: [], backtestStats: [] };
 
     async function loadAnalytics() {
       try {
-        const [ps, ss, stp, hs] = await Promise.all([
+        const [ps, ss, stp, hs, bts] = await Promise.all([
           fetch('/api/pair-stats').then(r => r.json()),
           fetch('/api/session-stats').then(r => r.json()),
           fetch('/api/setup-stats').then(r => r.json()),
           fetch('/api/hourly-stats').then(r => r.json()),
+          fetch('/api/backtest-stats').then(r => r.json()),
         ]);
         analyticsState.pairStats = ps || [];
         analyticsState.sessionStats = ss || [];
         analyticsState.setupStats = stp || [];
         analyticsState.hourlyStats = hs || [];
+        analyticsState.backtestStats = bts || [];
         renderCBBanner();
+        renderBacktestStats();
         renderPairStats();
         renderSessionStats();
         renderSetupStats();
         renderHourlyHeatmap();
         populateSymbolFilter();
       } catch (e) { /* server not ready */ }
+    }
+
+    // ── Backtest Stats Table ────────────────────────────────────────────────
+    function renderBacktestStats() {
+      const tbody = document.getElementById('backtestStatsBody');
+      if (!tbody) return;
+      const rows = analyticsState.backtestStats;
+      if (!rows || !rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No backtest data available. Backtest engine may still be running.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const wr = r.win_rate;
+        const wrClass = wr >= 0.50 ? 'pos' : (wr >= 0.40 ? 'neu' : 'neg');
+        const statusStr = wr >= 0.40 ? '<span class="badge badge-long">✅ WHITELISTED</span>' : '<span class="badge badge-short">🚫 BLOCKED</span>';
+
+        return `<tr>
+          <td style="font-weight:bold">${r.symbol}</td>
+          <td>${r.total_trades}</td>
+          <td><span class="pos">${r.wins}W</span></td>
+          <td><span class="neg">${r.losses}L</span></td>
+          <td class="${wrClass}" style="font-weight:bold">${fmt(wr * 100, 1)}%</td>
+          <td>${statusStr}</td>
+        </tr>`;
+      }).join('');
     }
 
     // ── Pair Stats Table ────────────────────────────────────────────────
@@ -2480,13 +2562,13 @@
         }
 
         const label = wr != null && total >= 2 ? `${Math.round(wr * 100)}%` : '—';
-        html += `<div title="${h}:00 UTC — ${total} trades${d ? ` — ${Math.round(d.win_rate*100)}% win` : ''}"
+        html += `<div title="${h}:00 UTC — ${total} trades${d ? ` — ${Math.round(d.win_rate * 100)}% win` : ''}"
           style="background:${bg}; color:${color}; border:1px solid var(--border); border-radius:3px;
             padding:10px 4px; text-align:center; font-size:11px; font-weight:bold; cursor:default;
             transition: transform 0.15s ease;"
           onmouseover="this.style.transform='scaleY(1.12)'"
           onmouseout="this.style.transform='scaleY(1)'">
-          <div style="font-size:9px; opacity:0.6; margin-bottom:2px;">${h < 10 ? '0'+h : h}h</div>
+          <div style="font-size:9px; opacity:0.6; margin-bottom:2px;">${h < 10 ? '0' + h : h}h</div>
           ${label}
           ${total > 0 ? `<div style="font-size:8px; opacity:0.5; margin-top:1px;">${total}t</div>` : ''}
         </div>`;

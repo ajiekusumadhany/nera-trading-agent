@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 DB_PATH = '/home/ajiekusumadhany.me/public_html/nera-quant/trades.db'
 
 # Hanya catat PnL dari tanggal ini ke depan (2026-05-23 04:00 WIB = 2026-05-22 21:00:00 UTC)
-SYNC_START_TS = 1779500940000
+SYNC_START_TS = 1779569100000
 _db_lock = threading.Lock()
 
 

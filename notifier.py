@@ -99,8 +99,8 @@ class TelegramNotifier:
                 bear_strength = debate.get('bear_strength', '')
                 verdict_emoji = "✅" if verdict == 'APPROVE' else "❌"
                 # Ambil kalimat pertama dari masing-masing reasoning (max 120 char)
-                bull_text = (debate.get('bull', '') or '').split('\n')[0].strip()[:120]
-                bear_text = (debate.get('bear', '') or '').split('\n')[0].strip()[:120]
+                bull_text = (debate.get('bull', '') or '').split('\n')[0].strip()
+                bear_text = (debate.get('bear', '') or '').split('\n')[0].strip()
                 ai_block = (
                     f"\n🤖 *AI CIO Reasoning:*\n"
                     f"{verdict_emoji} *Verdict:* `{verdict}` "
@@ -285,8 +285,8 @@ class TelegramNotifier:
                 bull_strength = debate.get('bull_strength', '')
                 bear_strength = debate.get('bear_strength', '')
                 verdict_emoji = "✅" if verdict == 'APPROVE' else "❌"
-                bull_text = (debate.get('bull', '') or '').split('\n')[0].strip()[:120]
-                bear_text = (debate.get('bear', '') or '').split('\n')[0].strip()[:120]
+                bull_text = (debate.get('bull', '') or '').split('\n')[0].strip()
+                bear_text = (debate.get('bear', '') or '').split('\n')[0].strip()
                 ai_block = (
                     f"\n🤖 *AI CIO Reasoning:*\n"
                     f"{verdict_emoji} *Verdict:* `{verdict}` "
