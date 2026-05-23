@@ -133,3 +133,42 @@ ENABLE_CIO_AGENT = True
 ENABLE_VISUAL_CHECK = True
 ENABLE_TWITTER_SCRAPE = True
 ENABLE_AI_RETROSPECTIVE = True
+
+
+# ============================================================
+# Feature A: Multi-Analyst Debate (Bull vs Bear CIO)
+# ============================================================
+ENABLE_CIO_DEBATE = True        # True = bull/bear debate, False = single-prompt CIO
+CIO_DEBATE_EPSILON = 0.10       # ε for ε-greedy (10% chance to skip debate → APPROVE)
+
+
+# ============================================================
+# Feature B: ε-greedy Dynamic Setup Weighting
+# ============================================================
+SETUP_WEIGHT_EPSILON = 0.10     # ε for setup type weighting (10% explore)
+TIMEFRAME_WEIGHT_EPSILON = 0.10 # ε for timeframe weighting
+
+
+# ============================================================
+# Feature C: Standing Orders / Auto-Blacklist
+# ============================================================
+AUTO_BLACKLIST_ENABLED = True
+AUTO_BLACKLIST_MIN_TRADES = 15
+AUTO_BLACKLIST_MAX_WIN_RATE = 0.35
+AUTO_BLACKLIST_SESSION_MIN_TRADES = 8
+AUTO_BLACKLIST_SESSION_MAX_WIN_RATE = 0.30
+
+
+# ============================================================
+# Feature D: L3 Meta-Feedback
+# ============================================================
+ENABLE_META_FEEDBACK = True
+META_FEEDBACK_BATCH = 5
+
+
+# ============================================================
+# Feature E: RAG Pattern Memory
+# ============================================================
+ENABLE_RAG_MEMORY = True
+RAG_TOP_K = 5
+RAG_MIN_SIMILARITY = 0.80

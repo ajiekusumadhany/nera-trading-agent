@@ -139,6 +139,23 @@ CREATE TABLE IF NOT EXISTS setup_stats (
     avg_rr          REAL    DEFAULT 0.0,
     last_updated    TEXT
 );
+
+-- ── Feature 3: Standing Orders / Auto-Blacklist ───────────────────────
+CREATE TABLE IF NOT EXISTS auto_blacklist (
+    symbol          TEXT    NOT NULL,
+    reason          TEXT    NOT NULL,   -- e.g. "win_rate=0.20 over 15 trades"
+    blacklist_type  TEXT    NOT NULL,   -- 'PAIR' | 'PAIR_SESSION'
+    session         TEXT,               -- NULL for full pair blacklist
+    win_rate        REAL,
+    total_trades    INTEGER,
+    created_at      TEXT    NOT NULL,
+    expires_at      TEXT,               -- NULL = permanent until manually cleared
+    active          INTEGER DEFAULT 1,  -- 1=active, 0=cleared
+    PRIMARY KEY (symbol, blacklist_type, COALESCE(session, ''))
+);
+
+-- ── Feature 4: L3 Meta-Feedback column (added via ALTER if missing) ───
+-- meta_feedback TEXT added to trade_intelligence via migration below
 """
 
 
@@ -156,7 +173,32 @@ def init_db():
         conn = get_conn()
         conn.executescript(SCHEMA)
         conn.commit()
+
+        # ── Migration: add meta_feedback column if not exists ──────────
+        try:
+            conn.execute("ALTER TABLE trade_intelligence ADD COLUMN meta_feedback TEXT")
+            conn.commit()
+            logger.info("[DB] Migration: added meta_feedback column to trade_intelligence")
+        except Exception:
+            pass  # Column already exists
+
+        # ── Migration: add cio_bull / cio_bear columns ─────────────────
+        for col in ('cio_bull_reasoning TEXT', 'cio_bear_reasoning TEXT', 'cio_verdict TEXT'):
+            try:
+                conn.execute(f"ALTER TABLE trade_intelligence ADD COLUMN {col}")
+                conn.commit()
+            except Exception:
+                pass
+
         conn.close()
+
+    # Init RAG schema
+    try:
+        import rag_memory
+        rag_memory.init_rag_schema()
+    except Exception as e:
+        logger.warning(f"[DB] RAG schema init warning: {e}")
+
     logger.info(f"[DB] Initialized: {DB_PATH}")
 
 
@@ -973,3 +1015,129 @@ def _push_stats_to_state():
 
     except Exception as e:
         logger.error(f"[DB] Push stats error: {e}")
+
+
+# ── Feature 3: Auto-Blacklist (Standing Orders) ───────────────────────
+
+def set_auto_blacklist(
+    symbol: str,
+    reason: str,
+    blacklist_type: str = 'PAIR',
+    session: str = None,
+    win_rate: float = 0.0,
+    total_trades: int = 0,
+    expires_at: str = None,
+):
+    """Insert or update an auto-blacklist entry."""
+    from datetime import datetime, timezone
+    created_at = datetime.now(timezone.utc).isoformat()
+    with _db_lock:
+        conn = get_conn()
+        try:
+            conn.execute("""
+                INSERT INTO auto_blacklist
+                    (symbol, reason, blacklist_type, session, win_rate, total_trades,
+                     created_at, expires_at, active)
+                VALUES (?,?,?,?,?,?,?,?,1)
+                ON CONFLICT(symbol, blacklist_type, COALESCE(session, '')) DO UPDATE SET
+                    reason=excluded.reason,
+                    win_rate=excluded.win_rate,
+                    total_trades=excluded.total_trades,
+                    created_at=excluded.created_at,
+                    expires_at=excluded.expires_at,
+                    active=1
+            """, (symbol, reason, blacklist_type, session, win_rate, total_trades, created_at, expires_at))
+            conn.commit()
+            logger.info(f"[Blacklist] Set: {symbol} type={blacklist_type} session={session} | {reason}")
+        except Exception as e:
+            logger.error(f"[Blacklist] set_auto_blacklist error: {e}")
+        finally:
+            conn.close()
+
+
+def get_active_blacklist() -> List[Dict]:
+    """Return all active auto-blacklist entries."""
+    with _db_lock:
+        conn = get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM auto_blacklist WHERE active=1 ORDER BY created_at DESC"
+            ).fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            logger.error(f"[Blacklist] get_active_blacklist error: {e}")
+            conn.close()
+            return []
+
+
+def clear_blacklist_entry(symbol: str, blacklist_type: str = 'PAIR', session: str = None):
+    """Deactivate a blacklist entry (soft delete)."""
+    with _db_lock:
+        conn = get_conn()
+        try:
+            conn.execute(
+                "UPDATE auto_blacklist SET active=0 WHERE symbol=? AND blacklist_type=? AND COALESCE(session,'')=COALESCE(?,'') ",
+                (symbol, blacklist_type, session)
+            )
+            conn.commit()
+            logger.info(f"[Blacklist] Cleared: {symbol} type={blacklist_type} session={session}")
+        except Exception as e:
+            logger.error(f"[Blacklist] clear_blacklist_entry error: {e}")
+        finally:
+            conn.close()
+
+
+# ── Feature 4: L3 Meta-Feedback ──────────────────────────────────────
+
+def save_meta_feedback(
+    trade_ref: str,
+    meta_feedback: str,
+    cio_verdict: str = None,
+    cio_bull_reasoning: str = None,
+    cio_bear_reasoning: str = None,
+):
+    """Save CIO debate details and meta-feedback to trade_intelligence."""
+    with _db_lock:
+        conn = get_conn()
+        try:
+            conn.execute("""
+                UPDATE trade_intelligence
+                SET meta_feedback=?,
+                    cio_verdict=?,
+                    cio_bull_reasoning=?,
+                    cio_bear_reasoning=?
+                WHERE trade_ref=?
+            """, (meta_feedback, cio_verdict, cio_bull_reasoning, cio_bear_reasoning, trade_ref))
+            conn.commit()
+            logger.info(f"[MetaFeedback] Saved for trade_ref={trade_ref}")
+        except Exception as e:
+            logger.error(f"[MetaFeedback] save_meta_feedback error: {e}")
+        finally:
+            conn.close()
+
+
+def get_trades_for_meta_eval(limit: int = 20) -> List[Dict]:
+    """
+    Fetch recently closed trades that have a CIO verdict but no meta_feedback yet.
+    Used by L3 meta-feedback loop.
+    """
+    with _db_lock:
+        conn = get_conn()
+        try:
+            rows = conn.execute("""
+                SELECT trade_ref, symbol, direction, outcome, result_pnl,
+                       cio_verdict, cio_bull_reasoning, cio_bear_reasoning
+                FROM trade_intelligence
+                WHERE outcome IN ('WIN','LOSS','BE')
+                  AND cio_verdict IS NOT NULL
+                  AND (meta_feedback IS NULL OR meta_feedback = '')
+                ORDER BY close_time_utc DESC
+                LIMIT ?
+            """, (limit,)).fetchall()
+            conn.close()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            logger.error(f"[MetaFeedback] get_trades_for_meta_eval error: {e}")
+            conn.close()
+            return []

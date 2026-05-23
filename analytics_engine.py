@@ -377,4 +377,221 @@ def run_all_analytics():
     compute_pair_stats()
     compute_session_stats()
     compute_setup_stats()
+    compute_auto_blacklist()       # Feature 3: Standing Orders
     logger.info("[Analytics] Full analytics update complete.")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Feature 2: ε-greedy Dynamic Setup Weighting
+# ─────────────────────────────────────────────────────────────────────
+
+def get_setup_weight(setup_type: str, epsilon: float = 0.10) -> float:
+    """
+    ε-greedy weight for a setup type based on historical win rate.
+
+    With probability ε → return 1.0 (explore: treat all setups equally)
+    With probability 1-ε → return win_rate-based weight (exploit)
+
+    Weight scale:
+      win_rate >= 0.65 → 1.20  (boost)
+      win_rate >= 0.50 → 1.00  (neutral)
+      win_rate >= 0.35 → 0.85  (slight penalty)
+      win_rate <  0.35 → 0.70  (penalty)
+      no data          → 1.00  (neutral, explore)
+    """
+    import random
+    if random.random() < epsilon:
+        logger.debug(f"[ε-greedy] Exploring: setup_type={setup_type} → weight=1.0")
+        return 1.0
+
+    rows = db.get_setup_stats()
+    for r in rows:
+        if r.get('setup_type') == setup_type and r.get('total_trades', 0) >= 5:
+            wr = r.get('win_rate', 0.0)
+            if wr >= 0.65:
+                weight = 1.20
+            elif wr >= 0.50:
+                weight = 1.00
+            elif wr >= 0.35:
+                weight = 0.85
+            else:
+                weight = 0.70
+            logger.debug(f"[ε-greedy] Exploit: setup_type={setup_type} win_rate={wr:.2f} → weight={weight}")
+            return weight
+
+    return 1.0  # No data → neutral
+
+
+def get_timeframe_weight(timeframe: str, epsilon: float = 0.10) -> float:
+    """
+    ε-greedy weight for a timeframe based on session_stats win rate.
+    Timeframes with higher historical win rate get boosted score multiplier.
+    """
+    import random
+    if random.random() < epsilon:
+        return 1.0
+
+    rows = db.get_session_stats()
+    tf_wins = 0
+    tf_total = 0
+    for r in rows:
+        if r.get('timeframe') == timeframe and r.get('total_trades', 0) >= 3:
+            tf_wins += r.get('win_trades', 0)
+            tf_total += r.get('total_trades', 0)
+
+    if tf_total < 5:
+        return 1.0
+
+    wr = tf_wins / tf_total
+    if wr >= 0.60:
+        return 1.15
+    elif wr >= 0.45:
+        return 1.00
+    else:
+        return 0.85
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Feature 3: Standing Orders — Auto-Blacklist
+# ─────────────────────────────────────────────────────────────────────
+
+def compute_auto_blacklist(
+    min_trades: int = 15,
+    max_win_rate: float = 0.35,
+    session_min_trades: int = 8,
+    session_max_win_rate: float = 0.30,
+) -> List[Dict]:
+    """
+    Identify chronically underperforming pairs and pair+session combos.
+    Writes results to auto_blacklist table.
+
+    Rules:
+      - PAIR blacklist: total_trades >= min_trades AND win_rate < max_win_rate
+      - PAIR_SESSION blacklist: session trades >= session_min_trades AND win_rate < session_max_win_rate
+    """
+    blacklisted = []
+    now_str = datetime.now(timezone.utc).isoformat()
+
+    # ── Pair-level blacklist ──────────────────────────────────────────
+    pair_rows = db.get_pair_stats()
+    for p in pair_rows:
+        total = p.get('total_trades', 0)
+        wr    = p.get('win_rate', 1.0)
+        sym   = p.get('symbol', '')
+        if total >= min_trades and wr < max_win_rate:
+            reason = f"win_rate={wr:.2f} over {total} trades (threshold={max_win_rate})"
+            db.set_auto_blacklist(
+                symbol=sym,
+                reason=reason,
+                blacklist_type='PAIR',
+                win_rate=wr,
+                total_trades=total,
+            )
+            blacklisted.append({'symbol': sym, 'type': 'PAIR', 'win_rate': wr, 'total': total})
+            logger.warning(f"[AutoBlacklist] PAIR blacklisted: {sym} | {reason}")
+
+    # ── Pair+Session blacklist ────────────────────────────────────────
+    conn = db.get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT symbol, session,
+                   COUNT(*) AS total,
+                   SUM(CASE WHEN outcome='WIN' THEN 1 ELSE 0 END) AS wins
+            FROM trade_intelligence
+            WHERE outcome IN ('WIN','LOSS','BE') AND session IS NOT NULL
+            GROUP BY symbol, session
+            HAVING total >= ?
+        """, (session_min_trades,)).fetchall()
+    except Exception as e:
+        logger.error(f"[AutoBlacklist] DB query error: {e}")
+        rows = []
+    finally:
+        conn.close()
+
+    for r in rows:
+        total = r['total']
+        wins  = r['wins'] or 0
+        wr    = wins / total
+        sym   = r['symbol']
+        sess  = r['session']
+        if wr < session_max_win_rate:
+            reason = f"win_rate={wr:.2f} in session={sess} over {total} trades"
+            db.set_auto_blacklist(
+                symbol=sym,
+                reason=reason,
+                blacklist_type='PAIR_SESSION',
+                session=sess,
+                win_rate=wr,
+                total_trades=total,
+            )
+            blacklisted.append({'symbol': sym, 'type': 'PAIR_SESSION', 'session': sess, 'win_rate': wr})
+            logger.warning(f"[AutoBlacklist] PAIR_SESSION blacklisted: {sym} @ {sess} | {reason}")
+
+    if blacklisted:
+        logger.info(f"[AutoBlacklist] Total blacklisted entries: {len(blacklisted)}")
+    return blacklisted
+
+
+def get_blacklisted_symbols() -> set:
+    """
+    Return set of symbols that are fully blacklisted (PAIR type, active).
+    Used by scanner to filter out symbols before analysis.
+    """
+    entries = db.get_active_blacklist()
+    return {e['symbol'] for e in entries if e.get('blacklist_type') == 'PAIR'}
+
+
+def get_blacklisted_pair_sessions() -> set:
+    """
+    Return set of (symbol, session) tuples that are blacklisted.
+    Used by scanner to skip signals in bad sessions.
+    """
+    entries = db.get_active_blacklist()
+    return {
+        (e['symbol'], e['session'])
+        for e in entries
+        if e.get('blacklist_type') == 'PAIR_SESSION' and e.get('session')
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Feature 4: L3 Meta-Feedback Loop
+# ─────────────────────────────────────────────────────────────────────
+
+def run_meta_feedback_loop(limit: int = 20):
+    """
+    L3 meta-feedback: for each recently closed trade with a CIO verdict
+    but no meta_feedback yet, ask Gemini to evaluate whether the CIO
+    debate was correct given the actual outcome.
+
+    Stores result in trade_intelligence.meta_feedback.
+    """
+    try:
+        import gemini_client
+
+        trades = db.get_trades_for_meta_eval(limit=limit)
+        if not trades:
+            logger.debug("[MetaFeedback] No trades pending meta-evaluation.")
+            return
+
+        logger.info(f"[MetaFeedback] Running L3 meta-eval on {len(trades)} trades...")
+        for t in trades:
+            try:
+                meta = gemini_client.ask_gemini_meta_eval(
+                    symbol=t.get('symbol', ''),
+                    direction=t.get('direction', ''),
+                    cio_verdict=t.get('cio_verdict', ''),
+                    outcome=t.get('outcome', ''),
+                    bull_reasoning=t.get('cio_bull_reasoning', '') or '',
+                    bear_reasoning=t.get('cio_bear_reasoning', '') or '',
+                )
+                db.save_meta_feedback(
+                    trade_ref=t['trade_ref'],
+                    meta_feedback=meta,
+                )
+                logger.info(f"[MetaFeedback] Saved for {t['trade_ref']}")
+            except Exception as e:
+                logger.error(f"[MetaFeedback] Error for {t.get('trade_ref')}: {e}")
+
+    except Exception as e:
+        logger.error(f"[MetaFeedback] run_meta_feedback_loop error: {e}")

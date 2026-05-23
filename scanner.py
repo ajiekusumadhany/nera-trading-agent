@@ -31,11 +31,12 @@ from monte_carlo import MonteCarloEngine, SimulationResult
 from notifier import TelegramNotifier
 from trader import BinanceTrader
 import database as db
-from analytics_engine import get_pair_personality, run_all_analytics
+from analytics_engine import get_pair_personality, run_all_analytics, get_setup_weight, get_timeframe_weight, get_blacklisted_symbols, get_blacklisted_pair_sessions
 from market_context import get_full_context
 from news_filter import get_news_filter
 import gemini_client
 import charting_engine
+import rag_memory
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,32 @@ class NeraScanner:
                         run_all_analytics()
                     except Exception as ae:
                         logger.error(f"Gagal memicu run_all_analytics() setelah userTrades close: {ae}")
+
+                    # Feature 5: Store pattern in RAG memory
+                    try:
+                        _features = getattr(active_trade, 'indicator_breakdown', None) or {}
+                        _outcome_str = 'WIN' if realized_pnl > 0 else ('LOSS' if realized_pnl < 0 else 'BE')
+                        rag_memory.store_pattern(
+                            trade_ref=trade_ref,
+                            symbol=symbol,
+                            direction=active_trade.get('direction', ''),
+                            features=_features,
+                            outcome=_outcome_str,
+                            result_pnl=realized_pnl,
+                            risk_reward=active_trade.get('risk_reward', 0.0),
+                            session=active_trade.get('session'),
+                            timeframe=active_trade.get('timeframe'),
+                        )
+                    except Exception as re:
+                        logger.debug(f"[RAG] store_pattern skipped (no features): {re}")
+
+                    # Feature 4: Trigger L3 meta-feedback (async-safe, best-effort)
+                    try:
+                        from analytics_engine import run_meta_feedback_loop
+                        run_meta_feedback_loop(limit=5)
+                    except Exception as me:
+                        logger.debug(f"[MetaFeedback] Skipped: {me}")
+
                     return
                 else:
                     logger.info(f"[{symbol}] No recent exit trades found in userTrades since open_time_ms={open_time_ms}. Fallback to estimation.")
@@ -279,6 +306,31 @@ class NeraScanner:
             run_all_analytics()
         except Exception as ae:
             logger.error(f"Gagal memicu run_all_analytics() setelah estimated close: {ae}")
+
+        # Feature 5: Store pattern in RAG memory (estimated close)
+        try:
+            _features = {}
+            _outcome_str = 'WIN' if est_pnl > 0 else ('LOSS' if est_pnl < 0 else 'BE')
+            rag_memory.store_pattern(
+                trade_ref=trade_ref,
+                symbol=symbol,
+                direction=active_trade.get('direction', ''),
+                features=_features,
+                outcome=_outcome_str,
+                result_pnl=est_pnl,
+                risk_reward=active_trade.get('risk_reward', 0.0),
+                session=active_trade.get('session'),
+                timeframe=active_trade.get('timeframe'),
+            )
+        except Exception as re:
+            logger.debug(f"[RAG] store_pattern (estimated) skipped: {re}")
+
+        # Feature 4: Trigger L3 meta-feedback
+        try:
+            from analytics_engine import run_meta_feedback_loop
+            run_meta_feedback_loop(limit=5)
+        except Exception as me:
+            logger.debug(f"[MetaFeedback] Skipped: {me}")
 
     def _load_active_trades(self) -> dict:
         import os
@@ -733,12 +785,39 @@ class NeraScanner:
                         )
                         
                     if ENABLE_CIO_AGENT:
-                        context = f"CIO pending setup evaluation for {signal.symbol} ({signal.direction})."
-                        prompt = "Look at the chart (or technicals). Reply with ONLY 'APPROVE' or 'REJECT'."
-                        cio_resp = gemini_client.ask_gemini_vision(prompt, chart_path) if chart_path else gemini_client.ask_gemini_text(prompt, context)
-                        if "REJECT" in cio_resp.upper():
-                            logger.warning(f"[{symbol}] CIO Agent REJECTED pending setup execution. {cio_resp}")
+                        # Feature 1: Multi-analyst debate for pending setup
+                        # Feature 5: RAG context enrichment
+                        _rag_patterns = rag_memory.find_similar_patterns(
+                            features=getattr(signal, 'indicator_breakdown', {}) or {},
+                            top_k=5,
+                        )
+                        _rag_str = rag_memory.format_similar_patterns_for_context(_rag_patterns)
+                        _ctx_str = (
+                            f"Pending setup triggered. "
+                            f"Confidence={signal.confidence:.2f} WinProb={signal.win_probability:.2f} "
+                            f"Score={signal.signal_score:.2f} RR={signal.risk_reward:.2f} "
+                            f"Entry={mark_price:.4f} TP={signal.take_profit:.4f} SL={signal.stop_loss:.4f}"
+                        )
+                        debate = gemini_client.ask_gemini_debate(
+                            symbol=signal.symbol,
+                            direction=signal.direction,
+                            context_str=_ctx_str,
+                            chart_path=chart_path,
+                            similar_patterns_str=_rag_str,
+                        )
+                        if debate['verdict'] == 'REJECT':
+                            logger.warning(
+                                f"[{symbol}] CIO Debate REJECTED pending setup execution. "
+                                f"Bull={debate.get('bull_strength')} Bear={debate.get('bear_strength')} | {debate['reasoning']}"
+                            )
                             continue
+                        _cio_verdict = debate['verdict']
+                        _cio_bull    = debate.get('bull', '')
+                        _cio_bear    = debate.get('bear', '')
+                    else:
+                        _cio_verdict = None
+                        _cio_bull    = ''
+                        _cio_bear    = ''
 
                     risk_pct = self._get_adaptive_risk_pct(symbol, risk_mult)
                     trade = self.trader.execute(signal, risk_pct=risk_pct)
@@ -753,6 +832,16 @@ class NeraScanner:
                         
                         setup_dur_mins = int((datetime.utcnow() - setup_time).total_seconds() / 60)
                         trade_ref = self._log_trade_intelligence(signal, trade, 'SMC_OB_PULLBACK', setup_dur_mins)
+
+                        # Feature 4: Save CIO debate details for later meta-eval
+                        if _cio_verdict and trade_ref:
+                            db.save_meta_feedback(
+                                trade_ref=trade_ref,
+                                meta_feedback='',
+                                cio_verdict=_cio_verdict,
+                                cio_bull_reasoning=_cio_bull[:500],
+                                cio_bear_reasoning=_cio_bear[:500],
+                            )
 
                         # Add to active_trades tracker
                         self.active_trades[trade.symbol] = {
@@ -813,6 +902,25 @@ class NeraScanner:
 
             # Step 3: Filter sinyal yang memenuhi threshold
             target_conf_threshold = SMC_MC_CONFIDENCE_THRESHOLD if SMC_MODE else MC_CONFIDENCE_THRESHOLD
+
+            # Feature 3: Load auto-blacklist (Standing Orders)
+            _blacklisted_pairs    = get_blacklisted_symbols()
+            _blacklisted_sessions = get_blacklisted_pair_sessions()
+            from market_context import get_session
+            _current_session = get_session()
+
+            # Feature 2: Apply ε-greedy setup & timeframe weighting to signal_score
+            for r in results:
+                if r.direction == 'NEUTRAL':
+                    continue
+                # Determine setup type for this signal
+                _setup_type = 'INSTANT'
+                if SMC_MODE and getattr(r, 'bull_ob_top', 0) > 0 or getattr(r, 'bear_ob_bot', 0) > 0:
+                    _setup_type = 'SMC_OB_PULLBACK'
+                _sw = get_setup_weight(_setup_type)
+                _tw = get_timeframe_weight(r.timeframe)
+                r.signal_score = round(r.signal_score * _sw * _tw, 4)
+
             strong_signals = [
                 r for r in results
                 if r.direction != 'NEUTRAL'
@@ -820,6 +928,10 @@ class NeraScanner:
                 and r.signal_score >= MIN_SIGNAL_SCORE
                 and r.win_probability >= MC_MIN_WIN_PROBABILITY
                 and r.expected_return >= MC_MIN_EXPECTED_RETURN
+                # Feature 3: Skip fully blacklisted pairs
+                and r.symbol not in _blacklisted_pairs
+                # Feature 3: Skip pair+session combos that are blacklisted
+                and (r.symbol, _current_session) not in _blacklisted_sessions
             ]
 
         # Step 4: Sort by confidence descending
@@ -969,12 +1081,38 @@ class NeraScanner:
                             continue
                             
                         if ENABLE_CIO_AGENT:
-                            context = f"CIO immediate trade evaluation for {signal.symbol} ({signal.direction})."
-                            prompt = "Look at the chart (or technicals). Reply with ONLY 'APPROVE' or 'REJECT'."
-                            cio_resp = gemini_client.ask_gemini_vision(prompt, chart_path) if chart_path else gemini_client.ask_gemini_text(prompt, context)
-                            if "REJECT" in cio_resp.upper():
-                                logger.warning(f"[{signal.symbol}] CIO Agent REJECTED immediate execution. {cio_resp}")
+                            # Feature 1: Multi-analyst debate (Bull vs Bear)
+                            # Feature 5: Enrich context with RAG similar patterns
+                            _rag_patterns = rag_memory.find_similar_patterns(
+                                features=getattr(signal, 'indicator_breakdown', {}) or {},
+                                top_k=5,
+                            )
+                            _rag_str = rag_memory.format_similar_patterns_for_context(_rag_patterns)
+                            _ctx_str = (
+                                f"Confidence={signal.confidence:.2f} WinProb={signal.win_probability:.2f} "
+                                f"Score={signal.signal_score:.2f} RR={signal.risk_reward:.2f} "
+                                f"Entry={signal.entry_price:.4f} TP={signal.take_profit:.4f} SL={signal.stop_loss:.4f}"
+                            )
+                            debate = gemini_client.ask_gemini_debate(
+                                symbol=signal.symbol,
+                                direction=signal.direction,
+                                context_str=_ctx_str,
+                                chart_path=chart_path,
+                                similar_patterns_str=_rag_str,
+                            )
+                            if debate['verdict'] == 'REJECT':
+                                logger.warning(
+                                    f"[{signal.symbol}] CIO Debate REJECTED immediate execution. "
+                                    f"Bull={debate.get('bull_strength')} Bear={debate.get('bear_strength')} | {debate['reasoning']}"
+                                )
                                 continue
+                            _cio_verdict      = debate['verdict']
+                            _cio_bull         = debate.get('bull', '')
+                            _cio_bear         = debate.get('bear', '')
+                        else:
+                            _cio_verdict = None
+                            _cio_bull    = ''
+                            _cio_bear    = ''
 
                         risk_pct = self._get_adaptive_risk_pct(signal.symbol, risk_mult)
                         trade = self.trader.execute(signal, risk_pct=risk_pct)
@@ -985,6 +1123,16 @@ class NeraScanner:
                             
                             # Log trade open intelligence
                             trade_ref = self._log_trade_intelligence(signal, trade, 'INSTANT')
+
+                            # Feature 4: Save CIO debate details for later meta-eval
+                            if _cio_verdict and trade_ref:
+                                db.save_meta_feedback(
+                                    trade_ref=trade_ref,
+                                    meta_feedback='',
+                                    cio_verdict=_cio_verdict,
+                                    cio_bull_reasoning=_cio_bull[:500],
+                                    cio_bear_reasoning=_cio_bear[:500],
+                                )
 
                             # Tambah ke active_trades tracker
                             self.active_trades[trade.symbol] = {
