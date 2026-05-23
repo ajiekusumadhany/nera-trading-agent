@@ -1075,7 +1075,7 @@ class NeraScanner:
                         }
                         self._save_pending_setups()
                         
-                        self.notifier.send_pending_setup_created(signal, trigger_price, invalidation_price)
+                        self.notifier.send_pending_setup_created(signal, trigger_price, invalidation_price, chart_path)
                     else:
                         # Proceed with immediate trade execution
                         is_paused, risk_mult, cb_reason = self._circuit_breaker.check()

@@ -221,7 +221,7 @@ class TelegramNotifier:
         )
         return self._send_message(message)
 
-    def send_pending_setup_created(self, signal, trigger_price: float, invalidation_price: float) -> bool:
+    def send_pending_setup_created(self, signal, trigger_price: float, invalidation_price: float, chart_path: str = None) -> bool:
         """Kirim notifikasi bahwa Setup Pending SMC berhasil dipasang."""
         if not NOTIFY_ON_SIGNAL:
             return False
@@ -245,6 +245,8 @@ class TelegramNotifier:
             f"🕐 `{timestamp}`\n"
             f"━━━━━━━━━━━━━━━━━━━━━━"
         )
+        if chart_path:
+            return self._send_photo(chart_path, message)
         return self._send_message(message)
 
     def send_pending_setup_triggered(self, signal, trade, chart_path: str = None) -> bool:
