@@ -1,0 +1,53 @@
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Environment ───────────────────────────────────────────────
+.env
+.venv/
+venv/
+env/
+ENV/
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+nohup.out
+
+# ── Database (contains trade history — potentially sensitive) ──
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.db.bak*
+
+# ── Runtime / PID ─────────────────────────────────────────────
+*.pid
+nera_quant.pid
+
+# ── Active state files ─────────────────────────────────────────
+active_trades.json
+active_trades.json.bak*
+pending_setups.json
+
+# ── Secrets ───────────────────────────────────────────────────
+config.py
+
+# ── IDE / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Scratch / Dev ─────────────────────────────────────────────
+scratch/

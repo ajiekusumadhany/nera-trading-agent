@@ -1,0 +1,10 @@
+python-binance==1.0.19
+requests==2.31.0
+numpy==1.26.4
+pandas==2.2.2
+ta==0.11.0
+aiohttp==3.9.5
+asyncio-throttle==1.0.2
+python-telegram-bot==21.3
+schedule==1.2.2
+colorlog==6.8.2
