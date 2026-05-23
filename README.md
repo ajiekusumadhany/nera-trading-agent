@@ -44,6 +44,7 @@
 - [📡 Dashboard & Notifications](#-dashboard--notifications)
 - [🗄️ Database Schema](#️-database-schema)
 - [🤖 AI Integration (Gemini 2.5 Pro)](#-ai-integration-gemini-25-pro)
+- [🔴 Switch to Live Trading / Beralih ke Real Trade](#-switch-to-live-trading--beralih-ke-real-trade)
 
 ---
 
@@ -607,7 +608,7 @@ ENABLE_AI_RETROSPECTIVE = True    # Weekly AI trade evaluation
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/nera-quant.git
+git clone https://github.com/ajiekusumadhany/nera-quant.git
 cd nera-quant
 
 # 2. Install dependencies
@@ -828,6 +829,92 @@ python-telegram-bot==21.3 # Telegram Bot API
 schedule==1.2.2           # Cron-style job scheduler
 colorlog==6.8.2           # Colored console logging
 ```
+
+---
+
+## 🔴 Switch to Live Trading / Beralih ke Real Trade
+
+> ⚠️ **Pastikan Anda sudah menguji sistem di testnet dan memahami risikonya sebelum beralih ke real trade.**
+
+### 🇬🇧 English
+
+Switching from testnet to live trading requires **3 changes only** — all in `config.py`:
+
+**Step 1 — Replace API credentials**
+
+Log in to [binance.com → API Management](https://www.binance.com/en/my/settings/api-management) and create a new API key with:
+- ✅ Enable Reading
+- ✅ Enable Futures
+- ❌ Disable Withdrawals (never enable this for a bot)
+
+```python
+# config.py
+API_KEY    = 'YOUR_LIVE_API_KEY'
+API_SECRET = 'YOUR_LIVE_API_SECRET'
+```
+
+**Step 2 — Change the base URLs to production endpoints**
+
+```python
+# config.py
+BINANCE_BASE_URL = 'https://fapi.binance.com'       # was: testnet.binancefuture.com
+BINANCE_WS_URL   = 'wss://fstream.binance.com'      # was: stream.binancefuture.com
+```
+
+**Step 3 — Restart the bot**
+
+```bash
+bash stop.sh
+bash start.sh
+```
+
+That's it. No other code changes are needed — all other modules (`trader.py`, `market_data.py`, etc.) read `BINANCE_BASE_URL` directly from `config.py`.
+
+---
+
+### 🇮🇩 Bahasa Indonesia
+
+Beralih dari testnet ke live trading hanya butuh **3 perubahan** — semuanya di `config.py`:
+
+**Langkah 1 — Ganti API credentials**
+
+Login ke [binance.com → API Management](https://www.binance.com/en/my/settings/api-management), buat API key baru dengan permission:
+- ✅ Enable Reading
+- ✅ Enable Futures
+- ❌ Disable Withdrawals (jangan pernah aktifkan ini untuk bot)
+
+```python
+# config.py
+API_KEY    = 'API_KEY_LIVE_ANDA'
+API_SECRET = 'API_SECRET_LIVE_ANDA'
+```
+
+**Langkah 2 — Ganti URL ke endpoint production**
+
+```python
+# config.py
+BINANCE_BASE_URL = 'https://fapi.binance.com'       # sebelumnya: testnet.binancefuture.com
+BINANCE_WS_URL   = 'wss://fstream.binance.com'      # sebelumnya: stream.binancefuture.com
+```
+
+**Langkah 3 — Restart bot**
+
+```bash
+bash stop.sh
+bash start.sh
+```
+
+Selesai. Tidak ada perubahan kode lain yang diperlukan — semua modul (`trader.py`, `market_data.py`, dll.) membaca `BINANCE_BASE_URL` langsung dari `config.py`.
+
+---
+
+### 📋 Testnet vs Live — URL Reference
+
+| | Testnet | Live (Production) |
+|---|---|---|
+| **REST API** | `https://testnet.binancefuture.com` | `https://fapi.binance.com` |
+| **WebSocket** | `wss://stream.binancefuture.com` | `wss://fstream.binance.com` |
+| **API Key Source** | [testnet.binancefuture.com](https://testnet.binancefuture.com) | [binance.com/en/my/settings/api-management](https://www.binance.com/en/my/settings/api-management) |
 
 ---
 
