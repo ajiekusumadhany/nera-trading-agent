@@ -821,7 +821,7 @@ class NeraScanner:
 
                     risk_pct = self._get_adaptive_risk_pct(symbol, risk_mult)
                     trade = self.trader.execute(signal, risk_pct=risk_pct)
-                    self.notifier.send_pending_setup_triggered(signal, trade, chart_path)
+                    self.notifier.send_pending_setup_triggered(signal, trade, chart_path, debate if ENABLE_CIO_AGENT else None)
                     
                     # Clean up pending setup regardless of execution success to prevent duplicate trigger loops
                     del self.pending_setups[symbol]
@@ -1119,7 +1119,7 @@ class NeraScanner:
 
                         risk_pct = self._get_adaptive_risk_pct(signal.symbol, risk_mult)
                         trade = self.trader.execute(signal, risk_pct=risk_pct)
-                        self.notifier.send_trade_executed(signal, trade, chart_path)
+                        self.notifier.send_trade_executed(signal, trade, chart_path, debate if ENABLE_CIO_AGENT else None)
                         if trade.success:
                             open_count += 1
                             self._trade_cooldown[(signal.symbol, signal.timeframe)] = now

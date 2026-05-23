@@ -73,10 +73,10 @@ class TelegramNotifier:
             return self._send_photo(chart_path, message)
         return self._send_message(message)
 
-    def send_trade_executed(self, signal, trade, chart_path: str = None) -> bool:
+    def send_trade_executed(self, signal, trade, chart_path: str = None, debate: dict = None) -> bool:
         """
         Kirim notifikasi setelah order berhasil dieksekusi.
-        Tampilkan detail order: leverage, quantity, margin, TP/SL order ID.
+        Tampilkan detail order: leverage, quantity, margin, TP/SL order ID + AI reasoning.
         """
         if not NOTIFY_ON_SIGNAL:
             return False
@@ -90,6 +90,24 @@ class TelegramNotifier:
             emoji_dir = "🟢 LONG" if trade.direction == 'LONG' else "🔴 SHORT"
             conf_pct  = f"{signal.confidence * 100:.1f}%"
             conf_bar  = self._confidence_bar(signal.confidence)
+
+            # ── AI Reasoning block ────────────────────────────────────
+            ai_block = ""
+            if debate and debate.get('verdict'):
+                verdict       = debate['verdict']
+                bull_strength = debate.get('bull_strength', '')
+                bear_strength = debate.get('bear_strength', '')
+                verdict_emoji = "✅" if verdict == 'APPROVE' else "❌"
+                # Ambil kalimat pertama dari masing-masing reasoning (max 120 char)
+                bull_text = (debate.get('bull', '') or '').split('\n')[0].strip()[:120]
+                bear_text = (debate.get('bear', '') or '').split('\n')[0].strip()[:120]
+                ai_block = (
+                    f"\n🤖 *AI CIO Reasoning:*\n"
+                    f"{verdict_emoji} *Verdict:* `{verdict}` "
+                    f"(Bull: `{bull_strength}` | Bear: `{bear_strength}`)\n"
+                    f"🟢 _{bull_text}_\n"
+                    f"🔴 _{bear_text}_\n"
+                )
 
             message = (
                 f"━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -107,7 +125,8 @@ class TelegramNotifier:
                 f"⚖️ *Risk/Reward:* 1:{signal.risk_reward:.2f}\n\n"
                 f"🔖 *Order ID:* `{trade.order_id}`\n"
                 f"🔖 *TP Order:* `{trade.tp_order_id}`\n"
-                f"🔖 *SL Order:* `{trade.sl_order_id}`\n\n"
+                f"🔖 *SL Order:* `{trade.sl_order_id}`\n"
+                f"{ai_block}\n"
                 f"🕐 `{timestamp}`\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━"
             )
@@ -249,7 +268,7 @@ class TelegramNotifier:
             return self._send_photo(chart_path, message)
         return self._send_message(message)
 
-    def send_pending_setup_triggered(self, signal, trade, chart_path: str = None) -> bool:
+    def send_pending_setup_triggered(self, signal, trade, chart_path: str = None, debate: dict = None) -> bool:
         """Kirim notifikasi bahwa Setup Pending berhasil terpicu & terisi."""
         if not NOTIFY_ON_SIGNAL:
             return False
@@ -258,6 +277,23 @@ class TelegramNotifier:
             emoji_dir = "🟢 LONG (OB Retest)" if trade.direction == 'LONG' else "🔴 SHORT (OB Retest)"
             conf_pct  = f"{signal.confidence * 100:.1f}%"
             conf_bar  = self._confidence_bar(signal.confidence)
+
+            # ── AI Reasoning block ────────────────────────────────────
+            ai_block = ""
+            if debate and debate.get('verdict'):
+                verdict       = debate['verdict']
+                bull_strength = debate.get('bull_strength', '')
+                bear_strength = debate.get('bear_strength', '')
+                verdict_emoji = "✅" if verdict == 'APPROVE' else "❌"
+                bull_text = (debate.get('bull', '') or '').split('\n')[0].strip()[:120]
+                bear_text = (debate.get('bear', '') or '').split('\n')[0].strip()[:120]
+                ai_block = (
+                    f"\n🤖 *AI CIO Reasoning:*\n"
+                    f"{verdict_emoji} *Verdict:* `{verdict}` "
+                    f"(Bull: `{bull_strength}` | Bear: `{bear_strength}`)\n"
+                    f"🟢 _{bull_text}_\n"
+                    f"🔴 _{bear_text}_\n"
+                )
 
             message = (
                 f"━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -275,7 +311,8 @@ class TelegramNotifier:
                 f"⚖️ *Risk/Reward:* 1:{signal.risk_reward:.2f}\n\n"
                 f"🔖 *Order ID:* `{trade.order_id}`\n"
                 f"🔖 *TP Order:* `{trade.tp_order_id}`\n"
-                f"🔖 *SL Order:* `{trade.sl_order_id}`\n\n"
+                f"🔖 *SL Order:* `{trade.sl_order_id}`\n"
+                f"{ai_block}\n"
                 f"🕐 `{timestamp}`\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━"
             )
