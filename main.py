@@ -85,6 +85,8 @@ def main():
     db_thread = threading.Thread(target=database.run_sync_loop, daemon=True)
     db_thread.start()
     logger.info("Database sync: started")
+    # Pastikan schema sudah ada sebelum scanner mulai
+    database.init_db()
 
     # Start weekly AI retrospective scheduler
     retro_thread = threading.Thread(target=_run_weekly_retrospective_loop, daemon=True)
