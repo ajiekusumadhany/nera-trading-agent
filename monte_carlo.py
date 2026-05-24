@@ -127,6 +127,9 @@ class MonteCarloEngine:
             price   = features['price']
             atr_pct = features['atr_pct']
 
+            # Ambil oi_divergence_signal dari breakdown (dihitung di Step 1)
+            oi_divergence_signal = breakdown.get('oi_divergence', 0)
+
             # Multiplier dinamis berdasarkan kondisi market
             tp_mult, sl_mult = self._calc_dynamic_multipliers(features, df)
 
