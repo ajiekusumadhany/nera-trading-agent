@@ -189,7 +189,7 @@ def compute_session_stats() -> List[Dict]:
 
 def compute_setup_stats() -> List[Dict]:
     """
-    Compute win rate per setup_type (INSTANT, SMC_OB_PULLBACK, PENDING_TRIGGER).
+    Compute win rate per setup_type (INSTANT, SMC_OB_PULLBACK, OI_DIVERGENCE, PENDING_TRIGGER).
     Writes to setup_stats table.
     """
     conn = db.get_conn()
@@ -238,7 +238,113 @@ def compute_setup_stats() -> List[Dict]:
         conn.close()
 
 
-# ── Pair Personality ───────────────────────────────────────────────────
+# ── OI vs Price Change Stats ───────────────────────────────────────────
+
+def compute_oi_price_stats() -> List[Dict]:
+    """
+    Compute win rate per kombinasi OI change bucket × trade direction.
+
+    OI Buckets (berdasarkan oi_change % saat entry):
+      STRONG_RISE : oi_change >= +2%
+      RISE        : +0.5% <= oi_change < +2%
+      FLAT        : -0.5% < oi_change < +0.5%
+      DROP        : -2% < oi_change <= -0.5%
+      STRONG_DROP : oi_change <= -2%
+
+    Insight yang dihasilkan:
+      - OI naik kuat + LONG → apakah ini bullish confirmation atau bull trap?
+      - OI turun kuat + SHORT → apakah ini bearish confirmation atau short squeeze?
+      - Juga menyertakan avg mc_win_prob saat entry untuk validasi Monte Carlo accuracy.
+
+    Writes to oi_price_stats table.
+    """
+    conn = db.get_conn()
+    try:
+        rows = conn.execute("""
+            SELECT
+                direction,
+                oi_change,
+                mc_win_prob,
+                result_rr_achieved,
+                outcome,
+                CASE
+                    WHEN oi_change >= 0.02  THEN 'STRONG_RISE'
+                    WHEN oi_change >= 0.005 THEN 'RISE'
+                    WHEN oi_change > -0.005 THEN 'FLAT'
+                    WHEN oi_change > -0.02  THEN 'DROP'
+                    ELSE                         'STRONG_DROP'
+                END AS oi_bucket
+            FROM trade_intelligence
+            WHERE outcome IN ('WIN','LOSS','BE')
+              AND oi_change IS NOT NULL
+              AND direction IN ('LONG','SHORT')
+        """).fetchall()
+
+        if not rows:
+            logger.info("[Analytics] OI price stats: no data yet")
+            return []
+
+        # Aggregate per (oi_bucket, direction)
+        from collections import defaultdict
+        buckets: dict = defaultdict(lambda: {
+            'total': 0, 'wins': 0,
+            'rr_sum': 0.0, 'mc_prob_sum': 0.0, 'oi_sum': 0.0
+        })
+
+        for r in rows:
+            key = (r['oi_bucket'], r['direction'])
+            b = buckets[key]
+            b['total'] += 1
+            if r['outcome'] == 'WIN':
+                b['wins'] += 1
+            b['rr_sum']      += float(r['result_rr_achieved'] or 0)
+            b['mc_prob_sum'] += float(r['mc_win_prob'] or 0)
+            b['oi_sum']      += float(r['oi_change'] or 0)
+
+        results = []
+        now_str = datetime.now(timezone.utc).isoformat()
+
+        for (oi_bucket, direction), b in buckets.items():
+            total    = b['total']
+            wins     = b['wins']
+            win_rate = round(wins / total, 4) if total > 0 else 0.0
+            avg_rr   = round(b['rr_sum'] / total, 4) if total > 0 else 0.0
+            avg_mc   = round(b['mc_prob_sum'] / total, 4) if total > 0 else 0.0
+            avg_oi   = round(b['oi_sum'] / total, 6) if total > 0 else 0.0
+
+            conn.execute("""
+                INSERT INTO oi_price_stats
+                    (oi_bucket, price_direction, total_trades, win_trades,
+                     win_rate, avg_rr, avg_mc_win_prob, avg_oi_change, last_updated)
+                VALUES (?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(oi_bucket, price_direction) DO UPDATE SET
+                    total_trades=excluded.total_trades,
+                    win_trades=excluded.win_trades,
+                    win_rate=excluded.win_rate,
+                    avg_rr=excluded.avg_rr,
+                    avg_mc_win_prob=excluded.avg_mc_win_prob,
+                    avg_oi_change=excluded.avg_oi_change,
+                    last_updated=excluded.last_updated
+            """, (oi_bucket, direction, total, wins, win_rate, avg_rr, avg_mc, avg_oi, now_str))
+
+            results.append({
+                'oi_bucket': oi_bucket, 'direction': direction,
+                'total': total, 'wins': wins, 'win_rate': win_rate,
+                'avg_mc_win_prob': avg_mc,
+            })
+
+        conn.commit()
+        logger.info(f"[Analytics] OI price stats updated: {len(results)} buckets")
+        return results
+
+    except Exception as e:
+        logger.error(f"[Analytics] compute_oi_price_stats error: {e}")
+        return []
+    finally:
+        conn.close()
+
+
+
 
 def get_pair_personality(symbol: str) -> Dict:
     """
@@ -377,6 +483,7 @@ def run_all_analytics():
     compute_pair_stats()
     compute_session_stats()
     compute_setup_stats()
+    compute_oi_price_stats()
     compute_auto_blacklist()       # Feature 3: Standing Orders
     logger.info("[Analytics] Full analytics update complete.")
 
@@ -398,6 +505,12 @@ def get_setup_weight(setup_type: str, epsilon: float = 0.10) -> float:
       win_rate >= 0.35 → 0.85  (slight penalty)
       win_rate <  0.35 → 0.70  (penalty)
       no data          → 1.00  (neutral, explore)
+
+    OI_DIVERGENCE uses a stricter scale (reversal trades are riskier):
+      win_rate >= 0.60 → 1.15
+      win_rate >= 0.50 → 1.00
+      win_rate >= 0.40 → 0.85
+      win_rate <  0.40 → 0.65
     """
     import random
     if random.random() < epsilon:
@@ -408,14 +521,27 @@ def get_setup_weight(setup_type: str, epsilon: float = 0.10) -> float:
     for r in rows:
         if r.get('setup_type') == setup_type and r.get('total_trades', 0) >= 5:
             wr = r.get('win_rate', 0.0)
-            if wr >= 0.65:
-                weight = 1.20
-            elif wr >= 0.50:
-                weight = 1.00
-            elif wr >= 0.35:
-                weight = 0.85
+
+            # OI_DIVERGENCE: reversal strategy → threshold lebih ketat
+            if setup_type == 'OI_DIVERGENCE':
+                if wr >= 0.60:
+                    weight = 1.15
+                elif wr >= 0.50:
+                    weight = 1.00
+                elif wr >= 0.40:
+                    weight = 0.85
+                else:
+                    weight = 0.65
             else:
-                weight = 0.70
+                if wr >= 0.65:
+                    weight = 1.20
+                elif wr >= 0.50:
+                    weight = 1.00
+                elif wr >= 0.35:
+                    weight = 0.85
+                else:
+                    weight = 0.70
+
             logger.debug(f"[ε-greedy] Exploit: setup_type={setup_type} win_rate={wr:.2f} → weight={weight}")
             return weight
 

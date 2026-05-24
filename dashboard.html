@@ -1374,7 +1374,41 @@
       </div>
     </div>
 
-    <!-- ROW 2: Hourly UTC Win Rate Heat Map -->
+    <!-- ROW 2: OI vs Price Change + Win Prob Monte Carlo -->
+    <div class="row">
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>OI vs PRICE CHANGE — WIN PROBABILITY (MONTE CARLO)</div>
+        <div style="font-size: 10px; color: var(--muted); margin-bottom: 12px; line-height: 1.6;">
+          Analisis korelasi perubahan Open Interest saat entry vs outcome trade.
+          <strong>AVG MC WIN PROB</strong> = rata-rata probabilitas Monte Carlo saat sinyal masuk.
+          <strong>ACTUAL WIN RATE</strong> = hasil nyata dari trade yang sudah close.
+          Selisih besar antara keduanya mengindikasikan over/under-confidence model.
+        </div>
+        <div class="table-wrap" style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>OI BUCKET</th>
+                <th>DIRECTION</th>
+                <th>TOTAL TRADES</th>
+                <th>ACTUAL WIN RATE</th>
+                <th>AVG MC WIN PROB</th>
+                <th>MODEL DELTA</th>
+                <th>AVG R/R ACH.</th>
+                <th>AVG OI CHANGE</th>
+              </tr>
+            </thead>
+            <tbody id="oiPriceStatsBody">
+              <tr>
+                <td colspan="8" class="empty">Loading OI vs price change data...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Hourly UTC Win Rate Heat Map -->
     <div class="row">
       <div class="card">
         <div class="card-title"><span class="dot"></span>HOURLY WIN RATE DISTRIBUTION (HEAT MAP UTC)</div>
@@ -1395,7 +1429,7 @@
       </div>
     </div>
 
-    <!-- ROW 3: MAE / MFE Distribution & Trade Intelligence Details -->
+    <!-- ROW 4: MAE / MFE Distribution & Trade Intelligence Details -->
     <div class="row">
       <div class="card">
         <div class="card-title"><span class="dot"></span>RAW INTELLIGENCE METRIC EXCURSIONS (MAE & MFE LOGS)</div>
@@ -1604,9 +1638,15 @@
           if (tfBadge === '1m') tfColor = 'var(--red)';
           else if (tfBadge === '3m') tfColor = 'var(--orange)';
           else if (tfBadge === '5m') tfColor = 'var(--yellow)';
+          // Setup type badge
+          const bd = s.indicator_breakdown || {};
+          const oiDiv = bd.oi_divergence || 0;
+          const setupBadge = oiDiv !== 0
+            ? `<span style="font-size:9px;font-weight:bold;color:#a78bfa;border:1px solid #a78bfa;border-radius:3px;padding:1px 4px;vertical-align:middle;margin-left:4px;">🔀 OI DIV</span>`
+            : '';
           return `<div class="signal-item ${cls}">
         <div>
-          <div class="signal-symbol">${s.symbol} <span style="font-size:9px;font-weight:bold;color:${tfColor};border:1px solid ${tfColor};border-radius:3px;padding:1px 4px;vertical-align:middle;margin-left:4px;">${tfBadge}</span></div>
+          <div class="signal-symbol">${s.symbol} <span style="font-size:9px;font-weight:bold;color:${tfColor};border:1px solid ${tfColor};border-radius:3px;padding:1px 4px;vertical-align:middle;margin-left:4px;">${tfBadge}</span>${setupBadge}</div>
           <div class="signal-meta">${new Date(s.timestamp || Date.now()).toLocaleTimeString()}</div>
         </div>
         <div>
@@ -2217,7 +2257,11 @@
         const oiVal = bd.oi_change;
         const oiStr = (oiVal >= 0 ? '+' : '') + (oiVal * 100).toFixed(2) + '%';
         let oiHtml;
-        if (oiVal > 0.015) oiHtml = `<span class="nm-signal-long">▲ CONFIRM (${oiStr})</span>`;
+        const oiDiv = bd.oi_divergence || 0;
+        if (oiDiv === 1)       oiHtml = `<span class="nm-signal-long">🔀 DIVERGENCE BULLISH (${oiStr}) — price↓ OI↑</span>`;
+        else if (oiDiv === -1) oiHtml = `<span class="nm-signal-short">🔀 DIVERGENCE BEARISH (${oiStr}) — price↑ OI↓</span>`;
+        else if (oiVal > 0.015) oiHtml = `<span class="nm-signal-long">▲ CONFIRM TREND (${oiStr})</span>`;
+        else if (oiVal < -0.015) oiHtml = `<span class="nm-signal-short">▼ CONFIRM TREND (${oiStr})</span>`;
         else oiHtml = `<span class="nm-signal-neut">○ NEUTRAL (${oiStr})</span>`;
         html += row('Open Interest Change', oiHtml);
       }
@@ -2415,27 +2459,30 @@
     }
 
     // ── Analytics Fetch ─────────────────────────────────────────────────
-    let analyticsState = { pairStats: [], sessionStats: [], setupStats: [], hourlyStats: [], backtestStats: [] };
+    let analyticsState = { pairStats: [], sessionStats: [], setupStats: [], hourlyStats: [], backtestStats: [], oiPriceStats: [] };
 
     async function loadAnalytics() {
       try {
-        const [ps, ss, stp, hs, bts] = await Promise.all([
+        const [ps, ss, stp, hs, bts, ois] = await Promise.all([
           fetch('/api/pair-stats').then(r => r.json()),
           fetch('/api/session-stats').then(r => r.json()),
           fetch('/api/setup-stats').then(r => r.json()),
           fetch('/api/hourly-stats').then(r => r.json()),
           fetch('/api/backtest-stats').then(r => r.json()),
+          fetch('/api/oi-price-stats').then(r => r.json()),
         ]);
         analyticsState.pairStats = ps || [];
         analyticsState.sessionStats = ss || [];
         analyticsState.setupStats = stp || [];
         analyticsState.hourlyStats = hs || [];
         analyticsState.backtestStats = bts || [];
+        analyticsState.oiPriceStats = ois || [];
         renderCBBanner();
         renderBacktestStats();
         renderPairStats();
         renderSessionStats();
         renderSetupStats();
+        renderOiPriceStats();
         renderHourlyHeatmap();
         populateSymbolFilter();
       } catch (e) { /* server not ready */ }
@@ -2525,14 +2572,82 @@
         tbody.innerHTML = '<tr><td colspan="4" class="empty">No setup data yet.</td></tr>';
         return;
       }
+
+      // Setup type labels & icons
+      const setupLabel = {
+        'SMC_OB_PULLBACK': '📐 SMC OB PULLBACK',
+        'OI_DIVERGENCE':   '🔀 OI DIVERGENCE',
+        'INSTANT':         '⚡ INSTANT',
+        'PENDING_TRIGGER': '⏳ PENDING TRIGGER',
+      };
+      // Win rate threshold berbeda per strategy type
+      // OI_DIVERGENCE = reversal, threshold "bagus" lebih rendah (>=55% sudah bagus)
+      const getWrClass = (setup_type, wr) => {
+        if (setup_type === 'OI_DIVERGENCE') {
+          return wr >= 0.55 ? 'pos' : wr >= 0.42 ? '' : 'neg';
+        }
+        return wr >= 0.65 ? 'pos' : wr >= 0.5 ? '' : 'neg';
+      };
+
       tbody.innerHTML = rows.map(s => {
         const wr = (s.win_rate != null) ? (s.win_rate * 100).toFixed(1) + '%' : '—';
-        const wrClass = s.win_rate >= 0.65 ? 'pos' : s.win_rate >= 0.5 ? '' : 'neg';
+        const wrClass = getWrClass(s.setup_type, s.win_rate);
+        const label = setupLabel[s.setup_type] || (s.setup_type || '—').replace(/_/g, ' ');
         return `<tr>
-          <td style="font-weight:bold">${(s.setup_type || '—').replace(/_/g, ' ')}</td>
+          <td style="font-weight:bold">${label}</td>
           <td>${s.total_trades || 0}</td>
           <td class="${wrClass}">${wr}</td>
           <td>${s.avg_rr != null ? Number(s.avg_rr).toFixed(2) : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── OI vs Price Change Stats Table ──────────────────────────────────
+    function renderOiPriceStats() {
+      const tbody = document.getElementById('oiPriceStatsBody');
+      if (!tbody) return;
+      const rows = analyticsState.oiPriceStats;
+      if (!rows || !rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No OI data yet. Requires closed trades with oi_change recorded.</td></tr>';
+        return;
+      }
+
+      // OI bucket labels & icons
+      const bucketLabel = {
+        'STRONG_RISE': '🔥 STRONG RISE (≥+2%)',
+        'RISE':        '📈 RISE (+0.5%~+2%)',
+        'FLAT':        '➡️ FLAT (±0.5%)',
+        'DROP':        '📉 DROP (-0.5%~-2%)',
+        'STRONG_DROP': '❄️ STRONG DROP (≤-2%)',
+      };
+
+      tbody.innerHTML = rows.map(r => {
+        const actualWr   = r.win_rate != null ? r.win_rate : null;
+        const mcWinProb  = r.avg_mc_win_prob != null ? r.avg_mc_win_prob : null;
+        const delta      = (actualWr != null && mcWinProb != null) ? (actualWr - mcWinProb) : null;
+
+        const wrStr      = actualWr  != null ? (actualWr  * 100).toFixed(1) + '%' : '—';
+        const mcStr      = mcWinProb != null ? (mcWinProb * 100).toFixed(1) + '%' : '—';
+        const deltaStr   = delta     != null ? (delta >= 0 ? '+' : '') + (delta * 100).toFixed(1) + '%' : '—';
+        const avgRrStr   = r.avg_rr  != null ? Number(r.avg_rr).toFixed(2) : '—';
+        const avgOiStr   = r.avg_oi_change != null ? (r.avg_oi_change >= 0 ? '+' : '') + (r.avg_oi_change * 100).toFixed(2) + '%' : '—';
+
+        const wrClass    = actualWr  >= 0.65 ? 'pos' : actualWr  >= 0.5 ? '' : 'neg';
+        const mcClass    = mcWinProb >= 0.65 ? 'pos' : mcWinProb >= 0.5 ? '' : 'neg';
+        const deltaClass = delta == null ? '' : delta >= 0.05 ? 'pos' : delta <= -0.05 ? 'neg' : '';
+        const dirBadge   = r.price_direction === 'LONG'
+          ? '<span class="badge badge-long">LONG</span>'
+          : '<span class="badge badge-short">SHORT</span>';
+
+        return `<tr>
+          <td style="font-weight:bold;white-space:nowrap">${bucketLabel[r.oi_bucket] || r.oi_bucket}</td>
+          <td>${dirBadge}</td>
+          <td>${r.total_trades || 0}</td>
+          <td class="${wrClass}" style="font-weight:bold">${wrStr}</td>
+          <td class="${mcClass}">${mcStr}</td>
+          <td class="${deltaClass}" style="font-weight:bold" title="Actual WR − MC Win Prob">${deltaStr}</td>
+          <td>${avgRrStr}</td>
+          <td style="color:var(--muted)">${avgOiStr}</td>
         </tr>`;
       }).join('');
     }

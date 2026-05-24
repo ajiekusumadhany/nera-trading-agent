@@ -250,6 +250,9 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path == '/api/setup-stats':
             import database as db
             self._json(db.get_setup_stats())
+        elif path == '/api/oi-price-stats':
+            import database as db
+            self._json(db.get_oi_price_stats())
         elif path == '/api/ticker':
             try:
                 import requests

@@ -46,6 +46,7 @@ class SimulationResult:
     htf_bias:         str = 'NEUTRAL'
     oi_change:        float = 0.0
     funding_rate:     float = 0.0
+    oi_divergence:    int   = 0   # +1 = bullish divergence (price↓ OI↑), -1 = bearish (price↑ OI↓), 0 = none
 
 
 class MonteCarloEngine:
@@ -121,7 +122,7 @@ class MonteCarloEngine:
             # menang lebih sering meski indikatornya lemah — ini bias yang tidak adil.
             mu = 0.0
 
-            # ── Step 3: Tentukan TP/SL berdasarkan SMC / ATR adaptif ──────────
+            # ── Step 3: Tentukan TP/SL berdasarkan strategy type ─────────────
             atr     = df['atr'].iloc[-1]
             price   = features['price']
             atr_pct = features['atr_pct']
@@ -132,23 +133,67 @@ class MonteCarloEngine:
             tp_distance = atr * tp_mult
             sl_distance = atr * sl_mult
 
-            # Import SMC settings
+            # Import settings
             from config import SMC_MODE
-            
-            use_smc_levels = False
-            if SMC_MODE:
+
+            # ── OI_DIVERGENCE: TP/SL khusus untuk short-term momentum shift ──
+            # Karakteristik: pergerakan singkat 3-8 candle, target konservatif,
+            # SL ketat karena kalau divergence salah harga langsung balik.
+            use_oi_div_levels = (oi_divergence_signal != 0)
+            use_smc_levels    = False
+
+            if use_oi_div_levels:
+                from config import (OI_DIVERGENCE_SL_BUFFER_ATR, OI_DIVERGENCE_TP_ATR_FALLBACK,
+                                    OI_DIVERGENCE_MIN_SL_ATR)
+                # SL: di atas/bawah candle entry + buffer kecil (0.3× ATR)
+                # Ketat karena divergence yang invalid langsung terbantah dalam 1-2 candle
+                oi_sl_buffer = atr * OI_DIVERGENCE_SL_BUFFER_ATR
+                if direction == 'LONG':
+                    # SL di bawah low candle terakhir + buffer
+                    recent_low  = df['low'].iloc[-3:].min()
+                    stop_loss   = min(recent_low - oi_sl_buffer, price - atr * OI_DIVERGENCE_MIN_SL_ATR)
+                else:  # SHORT
+                    # SL di atas high candle terakhir + buffer
+                    recent_high = df['high'].iloc[-3:].max()
+                    stop_loss   = max(recent_high + oi_sl_buffer, price + atr * OI_DIVERGENCE_MIN_SL_ATR)
+
+                sl_dist_oi = abs(price - stop_loss)
+
+                # TP: prioritas swing level terdekat, fallback ke ATR multiplier
+                # Target konservatif — ambil profit cepat sebelum momentum balik
+                swing_high = features.get('swing_high', 0.0)
+                swing_low  = features.get('swing_low', 0.0)
+
+                if direction == 'LONG':
+                    # TP di swing high terdekat di atas harga, atau fallback ATR
+                    if swing_high > price:
+                        take_profit = swing_high * 0.998  # sedikit di bawah swing high
+                    else:
+                        take_profit = price + atr * OI_DIVERGENCE_TP_ATR_FALLBACK
+                else:  # SHORT
+                    # TP di swing low terdekat di bawah harga, atau fallback ATR
+                    if swing_low > 0.0 and swing_low < price:
+                        take_profit = swing_low * 1.002  # sedikit di atas swing low
+                    else:
+                        take_profit = price - atr * OI_DIVERGENCE_TP_ATR_FALLBACK
+
+                # Override multiplier untuk logging yang akurat
+                tp_mult = round(abs(take_profit - price) / atr, 2) if atr > 0 else OI_DIVERGENCE_TP_ATR_FALLBACK
+                sl_mult = round(sl_dist_oi / atr, 2) if atr > 0 else OI_DIVERGENCE_SL_BUFFER_ATR
+
+            elif SMC_MODE:
                 bull_ob_bot = features.get('bull_ob_bot', 0.0)
                 bull_ob_top = features.get('bull_ob_top', 0.0)
                 bear_ob_top = features.get('bear_ob_top', 0.0)
                 bear_ob_bot = features.get('bear_ob_bot', 0.0)
-                
+
                 if direction == 'LONG' and bull_ob_bot > 0.0:
                     # Place SL below OB bottom with a 0.5 * ATR buffer to prevent getting stopped out by liquidity sweeps
                     stop_loss = bull_ob_bot - (0.5 * atr)
                     # Enforce minimum stop loss distance of sl_distance
                     if price - stop_loss < sl_distance:
                         stop_loss = price - sl_distance
-                    
+
                     # Place TP at the bottom of the Bearish OB (resistance zone), to exit reliably
                     take_profit = bear_ob_bot * 0.999 if (bear_ob_bot > price) else (price + tp_distance)
                     use_smc_levels = True
@@ -157,12 +202,12 @@ class MonteCarloEngine:
                     stop_loss = bear_ob_top + (0.5 * atr)
                     if stop_loss - price < sl_distance:
                         stop_loss = price + sl_distance
-                    
+
                     # Place TP at the top of the Bullish OB (support zone), to exit reliably
                     take_profit = bull_ob_top * 1.001 if (bull_ob_top > 0.0 and bull_ob_top < price) else (price - tp_distance)
                     use_smc_levels = True
 
-            if not use_smc_levels:
+            if not use_oi_div_levels and not use_smc_levels:
                 if direction == 'LONG':
                     take_profit = price + tp_distance
                     stop_loss   = price - sl_distance
@@ -180,15 +225,20 @@ class MonteCarloEngine:
                 tp_dist = atr * 2.0
                 take_profit = (price + tp_dist) if direction == 'LONG' else (price - tp_dist)
 
-            # Batasi minimal R/R ratio ke 1.5 untuk SMC (Sangat Agresif)
-            if (tp_dist / sl_dist) < 1.5:
-                take_profit = (price + sl_dist * 2.0) if direction == 'LONG' else (price - sl_dist * 2.0)
+            # Batasi minimal R/R ratio — OI_DIVERGENCE: 1.2 (scalp), SMC/lainnya: 1.5
+            from config import OI_DIVERGENCE_MIN_RR
+            min_rr = OI_DIVERGENCE_MIN_RR if use_oi_div_levels else 1.5
+            if (tp_dist / sl_dist) < min_rr:
+                take_profit = (price + sl_dist * (min_rr + 0.3)) if direction == 'LONG' else (price - sl_dist * (min_rr + 0.3))
                 tp_dist = abs(take_profit - price)
 
             risk_reward = tp_dist / sl_dist
 
             # ── Step 4: Monte Carlo simulation ───────────────────────
-            if timeframe == '5m':
+            # OI_DIVERGENCE: simulasi lebih pendek (3-8 candle) karena momentum shift singkat
+            if use_oi_div_levels:
+                n_steps = 15 if timeframe in ['1m', '3m', '5m'] else 20
+            elif timeframe == '5m':
                 n_steps = 25
             elif timeframe == '15m':
                 n_steps = 40
@@ -270,7 +320,8 @@ class MonteCarloEngine:
                 vol_spike=int(features.get('vol_spike', 0)),
                 htf_bias=get_htf_bias(htf_features),
                 oi_change=round(oi_change, 6),
-                funding_rate=round(funding_rate, 6)
+                funding_rate=round(funding_rate, 6),
+                oi_divergence=int(breakdown.get('oi_divergence', 0)),
             )
 
         except Exception as e:
@@ -568,10 +619,36 @@ class MonteCarloEngine:
         elif funding_rate > 0.0005:
             add_vote(0.5, -1) # positive funding is bearish
 
-        # ── 7. Open Interest (OI) Change Confirmation ─────────────────────
-        # Jika OI naik signifikan (> 1.5%), itu memvalidasi trend harga saat ini
-        if oi_change > 0.015:
-            add_vote(1.0, 1 if is_bullish else -1)
+        # ── 7. Open Interest (OI) Change — Trend Confirm OR Divergence ──────
+        # OI_DIVERGENCE hanya untuk LONG (price↓ OI↑ = short squeeze fuel).
+        # SHORT divergence (price↑ OI↓) diabaikan berdasarkan data historis.
+        from config import (OI_DIVERGENCE_ENABLED, OI_DIVERGENCE_MIN_OI_CHANGE,
+                            OI_DIVERGENCE_MIN_PRICE_CHG, OI_DIVERGENCE_SCORE_WEIGHT)
+
+        price_change = features.get('price_change', 0.0)  # single-candle % return
+        oi_divergence_signal = 0  # +1 bullish div only, 0 none
+
+        if abs(oi_change) >= OI_DIVERGENCE_MIN_OI_CHANGE:
+            price_up = price_change >  OI_DIVERGENCE_MIN_PRICE_CHG
+            price_dn = price_change < -OI_DIVERGENCE_MIN_PRICE_CHG
+            oi_up    = oi_change > 0
+            oi_dn    = oi_change < 0
+
+            if OI_DIVERGENCE_ENABLED:
+                if price_up and oi_dn:
+                    # Harga naik tapi OI turun → SHORT divergence → DIABAIKAN (win rate 0%)
+                    # Tidak ada vote, OI dianggap netral
+                    pass
+                elif price_dn and oi_up:
+                    # Harga turun tapi OI naik → shorts numpuk → bahan bakar short squeeze → potensi LONG
+                    oi_divergence_signal = 1
+                    add_vote(OI_DIVERGENCE_SCORE_WEIGHT, 1)
+                else:
+                    # OI konfirmasi arah harga (trend-following, behavior lama)
+                    add_vote(1.0, 1 if is_bullish else -1)
+            else:
+                # OI hanya sebagai trend confirmation (behavior lama)
+                add_vote(1.0, 1 if is_bullish else -1)
 
         # ── 7.5. Smart Money Concepts (SMC) Confluence ───────────────────
         from config import SMC_MODE
@@ -656,71 +733,82 @@ class MonteCarloEngine:
             htf_ema_trend   = htf_features.get('ema_trend', 0)
             htf_above_ema50 = htf_features.get('above_ema50', 0)
 
-            # Tentukan apakah HTF trend berpotensi berlawanan
-            long_vs_htf_bear  = (direction == 'LONG'  and htf_ema_trend == -1)
-            short_vs_htf_bull = (direction == 'SHORT' and htf_ema_trend ==  1)
+            # OI Divergence bypass: sinyal reversal boleh melewati HTF gatekeeper
+            from config import OI_DIVERGENCE_HTF_BYPASS
+            _is_oi_divergence = (oi_divergence_signal != 0)
+            _skip_htf = _is_oi_divergence and OI_DIVERGENCE_HTF_BYPASS
 
-            # ── A. Strict Gatekeeper (blok mutlak) ─────────────────────────
-            if HTF_STRICT_GATEKEEPER:
-                # Blok 100% jika EMA trend berlawanan
-                if long_vs_htf_bear:
-                    logger.info(
-                        f"[HTF Strict] ❌ LONG DIBLOK — HTF 1H Bearish (ema_trend=-1). "
-                        f"No counter-trend trades allowed."
-                    )
-                    direction = 'NEUTRAL'
-                    score = 0.0
-                elif short_vs_htf_bull:
-                    logger.info(
-                        f"[HTF Strict] ❌ SHORT DIBLOK — HTF 1H Bullish (ema_trend=+1). "
-                        f"No counter-trend trades allowed."
-                    )
-                    direction = 'NEUTRAL'
-                    score = 0.0
-                # Jika HTF sideways (ema_trend==0), cek posisi harga vs EMA50
-                elif htf_ema_trend == 0 and direction != 'NEUTRAL':
-                    if HTF_REQUIRE_BOTH_CONFIRM:
-                        # Mode ketat: harus aligned dengan EMA50 juga
-                        if direction == 'LONG' and htf_above_ema50 == -1:
-                            logger.info(
-                                f"[HTF Strict] ❌ LONG DIBLOK — HTF sideways tapi harga "
-                                f"di bawah 1H EMA50 (HTF_REQUIRE_BOTH_CONFIRM)."
-                            )
-                            direction = 'NEUTRAL'
-                            score = 0.0
-                        elif direction == 'SHORT' and htf_above_ema50 == 1:
-                            logger.info(
-                                f"[HTF Strict] ❌ SHORT DIBLOK — HTF sideways tapi harga "
-                                f"di atas 1H EMA50 (HTF_REQUIRE_BOTH_CONFIRM)."
-                            )
-                            direction = 'NEUTRAL'
-                            score = 0.0
-                    else:
-                        # Mode lunak: hanya kurangi score jika HTF sideways
+            if _skip_htf:
+                logger.debug(
+                    f"[HTF] OI_DIVERGENCE bypass aktif — HTF gatekeeper dilewati "
+                    f"(oi_div={oi_divergence_signal:+d}, htf_ema={htf_ema_trend})"
+                )
+            else:
+                # Tentukan apakah HTF trend berpotensi berlawanan
+                long_vs_htf_bear  = (direction == 'LONG'  and htf_ema_trend == -1)
+                short_vs_htf_bull = (direction == 'SHORT' and htf_ema_trend ==  1)
+
+                # ── A. Strict Gatekeeper (blok mutlak) ─────────────────────────
+                if HTF_STRICT_GATEKEEPER:
+                    # Blok 100% jika EMA trend berlawanan
+                    if long_vs_htf_bear:
+                        logger.info(
+                            f"[HTF Strict] ❌ LONG DIBLOK — HTF 1H Bearish (ema_trend=-1). "
+                            f"No counter-trend trades allowed."
+                        )
+                        direction = 'NEUTRAL'
+                        score = 0.0
+                    elif short_vs_htf_bull:
+                        logger.info(
+                            f"[HTF Strict] ❌ SHORT DIBLOK — HTF 1H Bullish (ema_trend=+1). "
+                            f"No counter-trend trades allowed."
+                        )
+                        direction = 'NEUTRAL'
+                        score = 0.0
+                    # Jika HTF sideways (ema_trend==0), cek posisi harga vs EMA50
+                    elif htf_ema_trend == 0 and direction != 'NEUTRAL':
+                        if HTF_REQUIRE_BOTH_CONFIRM:
+                            # Mode ketat: harus aligned dengan EMA50 juga
+                            if direction == 'LONG' and htf_above_ema50 == -1:
+                                logger.info(
+                                    f"[HTF Strict] ❌ LONG DIBLOK — HTF sideways tapi harga "
+                                    f"di bawah 1H EMA50 (HTF_REQUIRE_BOTH_CONFIRM)."
+                                )
+                                direction = 'NEUTRAL'
+                                score = 0.0
+                            elif direction == 'SHORT' and htf_above_ema50 == 1:
+                                logger.info(
+                                    f"[HTF Strict] ❌ SHORT DIBLOK — HTF sideways tapi harga "
+                                    f"di atas 1H EMA50 (HTF_REQUIRE_BOTH_CONFIRM)."
+                                )
+                                direction = 'NEUTRAL'
+                                score = 0.0
+                        else:
+                            # Mode lunak: hanya kurangi score jika HTF sideways
+                            if direction == 'LONG' and htf_above_ema50 == -1:
+                                logger.debug(f"HTF Filter: LONG diturunkan karena harga di bawah 1h EMA50")
+                                score *= 0.8
+                            elif direction == 'SHORT' and htf_above_ema50 == 1:
+                                logger.debug(f"HTF Filter: SHORT diturunkan karena harga di atas 1h EMA50")
+                                score *= 0.8
+
+                # ── B. Mode Lunak (legacy, HTF_STRICT_GATEKEEPER=False) ─────────
+                else:
+                    if long_vs_htf_bear:
+                        logger.debug(f"HTF Filter: LONG dibatalkan karena HTF bearish trend (ema_trend=-1)")
+                        direction = 'NEUTRAL'
+                        score = 0.0
+                    elif short_vs_htf_bull:
+                        logger.debug(f"HTF Filter: SHORT dibatalkan karena HTF bullish trend (ema_trend=1)")
+                        direction = 'NEUTRAL'
+                        score = 0.0
+                    elif htf_ema_trend == 0:
                         if direction == 'LONG' and htf_above_ema50 == -1:
                             logger.debug(f"HTF Filter: LONG diturunkan karena harga di bawah 1h EMA50")
                             score *= 0.8
                         elif direction == 'SHORT' and htf_above_ema50 == 1:
                             logger.debug(f"HTF Filter: SHORT diturunkan karena harga di atas 1h EMA50")
                             score *= 0.8
-
-            # ── B. Mode Lunak (legacy, HTF_STRICT_GATEKEEPER=False) ─────────
-            else:
-                if long_vs_htf_bear:
-                    logger.debug(f"HTF Filter: LONG dibatalkan karena HTF bearish trend (ema_trend=-1)")
-                    direction = 'NEUTRAL'
-                    score = 0.0
-                elif short_vs_htf_bull:
-                    logger.debug(f"HTF Filter: SHORT dibatalkan karena HTF bullish trend (ema_trend=1)")
-                    direction = 'NEUTRAL'
-                    score = 0.0
-                elif htf_ema_trend == 0:
-                    if direction == 'LONG' and htf_above_ema50 == -1:
-                        logger.debug(f"HTF Filter: LONG diturunkan karena harga di bawah 1h EMA50")
-                        score *= 0.8
-                    elif direction == 'SHORT' and htf_above_ema50 == 1:
-                        logger.debug(f"HTF Filter: SHORT diturunkan karena harga di atas 1h EMA50")
-                        score *= 0.8
 
         breakdown = {
             'ema_trend': ema_trend,
@@ -735,6 +823,7 @@ class MonteCarloEngine:
             'vol_spike': 1 if (vol_spike and is_bullish) else (-1 if (vol_spike and not is_bullish) else 0),
             'funding_rate': funding_rate,
             'oi_change': oi_change,
+            'oi_divergence': oi_divergence_signal,  # +1/-1/0
             'htf_ema_trend': htf_features.get('ema_trend', 0) if htf_features else 0,
             'htf_above_ema50': htf_features.get('above_ema50', 0) if htf_features else 0,
             'bos': bos,

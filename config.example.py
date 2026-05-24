@@ -182,3 +182,20 @@ META_FEEDBACK_BATCH = 5         # Jumlah trade yang dievaluasi per batch
 ENABLE_RAG_MEMORY = True        # Aktifkan RAG similarity search
 RAG_TOP_K = 5                   # Jumlah similar patterns yang diambil
 RAG_MIN_SIMILARITY = 0.80       # Min cosine similarity untuk dianggap relevan
+
+
+# ============================================================
+# OI Divergence Strategy Settings
+# ============================================================
+OI_DIVERGENCE_ENABLED        = True   # Aktifkan strategy OI vs Price Divergence
+OI_DIVERGENCE_MIN_OI_CHANGE  = 0.015  # Min |OI change| yang dianggap signifikan (1.5%)
+OI_DIVERGENCE_MIN_PRICE_CHG  = 0.003  # Min |price change| yang dianggap signifikan (0.3%)
+OI_DIVERGENCE_SCORE_WEIGHT   = 2.5    # Vote weight untuk sinyal divergence
+OI_DIVERGENCE_CONF_THRESHOLD = 0.62   # Min confidence khusus OI_DIVERGENCE
+OI_DIVERGENCE_MIN_SCORE      = 0.55   # Min signal score khusus OI_DIVERGENCE
+OI_DIVERGENCE_HTF_BYPASS     = True   # Izinkan OI_DIVERGENCE melewati HTF strict gatekeeper
+                                       # (reversal signal wajar berlawanan dengan HTF)
+OI_DIVERGENCE_SL_BUFFER_ATR  = 0.3    # Buffer SL di atas/bawah recent high/low (× ATR)
+OI_DIVERGENCE_TP_ATR_FALLBACK = 1.2   # TP fallback jika tidak ada swing level (× ATR)
+OI_DIVERGENCE_MIN_SL_ATR     = 0.5    # Minimum SL distance (× ATR), cegah SL terlalu ketat
+OI_DIVERGENCE_MIN_RR         = 1.2    # Minimum R/R ratio untuk OI_DIVERGENCE (lebih rendah dari SMC 1.5)

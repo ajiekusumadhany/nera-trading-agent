@@ -852,7 +852,13 @@ class NeraScanner:
                         self._trade_cooldown[(symbol, setup['timeframe'])] = datetime.utcnow()
                         
                         setup_dur_mins = int((datetime.utcnow() - setup_time).total_seconds() / 60)
-                        trade_ref = self._log_trade_intelligence(signal, trade, 'SMC_OB_PULLBACK', setup_dur_mins)
+                        # Pending setups saat ini hanya dibuat untuk SMC_OB_PULLBACK
+                        # tapi jika di masa depan OI_DIVERGENCE juga punya pending mode,
+                        # cek oi_divergence di sini juga
+                        _pend_setup_type = 'SMC_OB_PULLBACK'
+                        if getattr(signal, 'oi_divergence', 0) != 0:
+                            _pend_setup_type = 'OI_DIVERGENCE'
+                        trade_ref = self._log_trade_intelligence(signal, trade, _pend_setup_type, setup_dur_mins)
 
                         # Feature 4: Save CIO debate details for later meta-eval
                         if _cio_verdict and trade_ref:
@@ -939,17 +945,33 @@ class NeraScanner:
                     continue
                 # Determine setup type for this signal
                 _setup_type = 'INSTANT'
-                if SMC_MODE and getattr(r, 'bull_ob_top', 0) > 0 or getattr(r, 'bear_ob_bot', 0) > 0:
+                if SMC_MODE and (getattr(r, 'bull_ob_top', 0) > 0 or getattr(r, 'bear_ob_bot', 0) > 0):
                     _setup_type = 'SMC_OB_PULLBACK'
+                elif getattr(r, 'oi_divergence', 0) != 0:
+                    _setup_type = 'OI_DIVERGENCE'
                 _sw = get_setup_weight(_setup_type)
                 _tw = get_timeframe_weight(r.timeframe)
                 r.signal_score = round(r.signal_score * _sw * _tw, 4)
 
+            from config import OI_DIVERGENCE_CONF_THRESHOLD, OI_DIVERGENCE_MIN_SCORE
+
+            def _get_conf_threshold(r) -> float:
+                """Threshold confidence per setup type."""
+                if getattr(r, 'oi_divergence', 0) != 0:
+                    return OI_DIVERGENCE_CONF_THRESHOLD
+                return target_conf_threshold
+
+            def _get_min_score(r) -> float:
+                """Min signal score per setup type."""
+                if getattr(r, 'oi_divergence', 0) != 0:
+                    return OI_DIVERGENCE_MIN_SCORE
+                return MIN_SIGNAL_SCORE
+
             strong_signals = [
                 r for r in results
                 if r.direction != 'NEUTRAL'
-                and r.confidence >= target_conf_threshold
-                and r.signal_score >= MIN_SIGNAL_SCORE
+                and r.confidence >= _get_conf_threshold(r)
+                and r.signal_score >= _get_min_score(r)
                 and r.win_probability >= MC_MIN_WIN_PROBABILITY
                 and r.expected_return >= MC_MIN_EXPECTED_RETURN
                 # Feature 3: Skip fully blacklisted pairs
@@ -981,20 +1003,22 @@ class NeraScanner:
             # Push ke dashboard state
             import api_server as api
             api.append_signal({
-                'symbol':           signal.symbol,
-                'direction':        signal.direction,
-                'confidence':       signal.confidence,
-                'win_probability':  signal.win_probability,
-                'entry_price':      signal.entry_price,
-                'take_profit':      signal.take_profit,
-                'stop_loss':        signal.stop_loss,
-                'risk_reward':      signal.risk_reward,
-                'signal_score':     signal.signal_score,
-                'profitable_paths': signal.profitable_paths,
-                'tp_multiplier':    signal.tp_multiplier,
-                'sl_multiplier':    signal.sl_multiplier,
-                'timestamp':        now.isoformat(),
-                'timeframe':        signal.timeframe,
+                'symbol':               signal.symbol,
+                'direction':            signal.direction,
+                'confidence':           signal.confidence,
+                'win_probability':      signal.win_probability,
+                'entry_price':          signal.entry_price,
+                'take_profit':          signal.take_profit,
+                'stop_loss':            signal.stop_loss,
+                'risk_reward':          signal.risk_reward,
+                'signal_score':         signal.signal_score,
+                'profitable_paths':     signal.profitable_paths,
+                'tp_multiplier':        signal.tp_multiplier,
+                'sl_multiplier':        signal.sl_multiplier,
+                'timestamp':            now.isoformat(),
+                'timeframe':            signal.timeframe,
+                'oi_divergence':        getattr(signal, 'oi_divergence', 0),
+                'indicator_breakdown':  getattr(signal, 'indicator_breakdown', {}) or {},
             })
 
             chart_path = None
@@ -1145,8 +1169,15 @@ class NeraScanner:
                             open_count += 1
                             self._trade_cooldown[(signal.symbol, signal.timeframe)] = now
                             
+                            # Determine setup type for logging
+                            _exec_setup_type = 'INSTANT'
+                            if SMC_MODE and (getattr(signal, 'bull_ob_top', 0) > 0 or getattr(signal, 'bear_ob_bot', 0) > 0):
+                                _exec_setup_type = 'SMC_OB_PULLBACK'
+                            elif getattr(signal, 'oi_divergence', 0) != 0:
+                                _exec_setup_type = 'OI_DIVERGENCE'
+
                             # Log trade open intelligence
-                            trade_ref = self._log_trade_intelligence(signal, trade, 'INSTANT')
+                            trade_ref = self._log_trade_intelligence(signal, trade, _exec_setup_type)
 
                             # Feature 4: Save CIO debate details for later meta-eval
                             if _cio_verdict and trade_ref:
@@ -1232,7 +1263,13 @@ class NeraScanner:
             # 2. Ambil data Higher Timeframe (HTF) untuk konfirmasi trend utama
             htf_features = None
             try:
-                htf_interval = '15m' if timeframe in ['1m', '3m'] else '1h'
+                # 5m → HTF 15m | 15m/1h → HTF 1h | 1m/3m → HTF 15m
+                if timeframe == '5m':
+                    htf_interval = '15m'
+                elif timeframe in ['1m', '3m']:
+                    htf_interval = '15m'
+                else:
+                    htf_interval = '1h'
                 df_htf = self.market.get_klines(symbol, interval=htf_interval, limit=50)
                 if df_htf is not None and len(df_htf) >= 30:
                     df_htf_with_indicators = self.indicator.compute_all(df_htf)

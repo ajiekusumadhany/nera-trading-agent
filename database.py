@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS trade_intelligence (
     session                     TEXT,             -- ASIA / LONDON / NY / OFF
     entry_hour_utc              INTEGER,          -- 0-23
     entry_weekday               INTEGER,          -- 0=Mon … 6=Sun
-    setup_type                  TEXT,             -- SMC_OB_PULLBACK / INSTANT / PENDING_TRIGGER
+    setup_type                  TEXT,             -- SMC_OB_PULLBACK / INSTANT / OI_DIVERGENCE / PENDING_TRIGGER
     smc_signals                 TEXT,             -- JSON: {bos, choch, fvg_dir, bull_ob_top, ...}
     mc_confidence               REAL,
     mc_win_prob                 REAL,
@@ -155,6 +155,20 @@ CREATE TABLE IF NOT EXISTS auto_blacklist (
     UNIQUE (symbol, blacklist_type, session)
 );
 
+-- ── OI vs Price Change Stats ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS oi_price_stats (
+    oi_bucket       TEXT    NOT NULL,   -- e.g. 'STRONG_RISE', 'RISE', 'FLAT', 'DROP', 'STRONG_DROP'
+    price_direction TEXT    NOT NULL,   -- 'LONG' | 'SHORT'
+    total_trades    INTEGER DEFAULT 0,
+    win_trades      INTEGER DEFAULT 0,
+    win_rate        REAL    DEFAULT 0.0,
+    avg_rr          REAL    DEFAULT 0.0,
+    avg_mc_win_prob REAL    DEFAULT 0.0,  -- rata-rata mc_win_prob saat entry
+    avg_oi_change   REAL    DEFAULT 0.0,  -- rata-rata oi_change aktual
+    last_updated    TEXT,
+    PRIMARY KEY (oi_bucket, price_direction)
+);
+
 -- ── Feature 4: L3 Meta-Feedback column (added via ALTER if missing) ───
 -- meta_feedback TEXT added to trade_intelligence via migration below
 """
@@ -190,6 +204,23 @@ def init_db():
                 conn.commit()
             except Exception:
                 pass
+
+        # ── Migration: create oi_price_stats if not exists ─────────────
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS oi_price_stats (
+                oi_bucket       TEXT    NOT NULL,
+                price_direction TEXT    NOT NULL,
+                total_trades    INTEGER DEFAULT 0,
+                win_trades      INTEGER DEFAULT 0,
+                win_rate        REAL    DEFAULT 0.0,
+                avg_rr          REAL    DEFAULT 0.0,
+                avg_mc_win_prob REAL    DEFAULT 0.0,
+                avg_oi_change   REAL    DEFAULT 0.0,
+                last_updated    TEXT,
+                PRIMARY KEY (oi_bucket, price_direction)
+            )
+        """)
+        conn.commit()
 
         conn.close()
 
@@ -909,6 +940,27 @@ def get_setup_stats() -> List[Dict]:
     with _db_lock:
         conn = get_conn()
         rows = conn.execute("SELECT * FROM setup_stats ORDER BY win_rate DESC").fetchall()
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_oi_price_stats() -> List[Dict]:
+    """Ambil statistik OI vs Price Change dari tabel oi_price_stats."""
+    with _db_lock:
+        conn = get_conn()
+        rows = conn.execute("""
+            SELECT * FROM oi_price_stats
+            ORDER BY
+                CASE oi_bucket
+                    WHEN 'STRONG_RISE' THEN 1
+                    WHEN 'RISE'        THEN 2
+                    WHEN 'FLAT'        THEN 3
+                    WHEN 'DROP'        THEN 4
+                    WHEN 'STRONG_DROP' THEN 5
+                    ELSE 6
+                END,
+                price_direction
+        """).fetchall()
         conn.close()
     return [dict(r) for r in rows]
 
