@@ -21,7 +21,7 @@ def ask_gemini_text(prompt: str, context: str = "") -> str:
     try:
         full_prompt = f"Context: {context}\n\nTask: {prompt}" if context else prompt
         response = client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-2.5-flash-lite',
             contents=full_prompt,
         )
         return response.text
@@ -39,7 +39,7 @@ def ask_gemini_vision(prompt: str, image_path: str) -> str:
             
         img = Image.open(image_path)
         response = client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-2.5-flash-lite',
             contents=[prompt, img]
         )
         return response.text
@@ -96,19 +96,19 @@ def ask_gemini_debate(
         if chart_path and os.path.exists(chart_path):
             img = Image.open(chart_path)
             bull_resp = client.models.generate_content(
-                model='gemini-2.5-pro',
+                model='gemini-2.5-flash-lite',
                 contents=[bull_prompt, img]
             ).text
             bear_resp = client.models.generate_content(
-                model='gemini-2.5-pro',
+                model='gemini-2.5-flash-lite',
                 contents=[bear_prompt, img]
             ).text
         else:
             bull_resp = client.models.generate_content(
-                model='gemini-2.5-pro', contents=bull_prompt
+                model='gemini-2.5-flash-lite', contents=bull_prompt
             ).text
             bear_resp = client.models.generate_content(
-                model='gemini-2.5-pro', contents=bear_prompt
+                model='gemini-2.5-flash-lite', contents=bear_prompt
             ).text
 
         # Parse verdicts
@@ -184,7 +184,7 @@ def ask_gemini_meta_eval(
             f"Give a 2-3 sentence evaluation. Gunakan Bahasa Indonesia. End with: META_QUALITY: GOOD | ACCEPTABLE | POOR"
         )
         resp = client.models.generate_content(
-            model='gemini-2.5-pro', contents=prompt
+            model='gemini-2.5-flash-lite', contents=prompt
         ).text
         logger.info(f"[MetaEval] {symbol} {direction} | CIO={cio_verdict} Outcome={outcome}")
         return resp
