@@ -46,12 +46,12 @@ Setiap sinyal divalidasi oleh **Gemini 2.5 Pro** yang bertindak sebagai *Chief I
 ### 🌟 Fitur Utama
 
 - **Strategi Hybrid**: Menggabungkan indikator teknikal klasik (EMA, MACD, RSI) dengan Smart Money Concepts (BOS, CHoCH, Order Blocks, FVG) untuk sinyal berkualitas tinggi.
-- **Perkiraan Probabilistik**: Menggunakan **Monte Carlo Engine** (5,000 simulasi per sinyal) untuk menghitung probabilitas profit (Win Probability) dan memvalidasi setiap setup.
-- **Pengambilan Keputusan Berbasis AI**: **Gemini 2.5 Pro CIO Agent** menganalisis setiap sinyal, lengkap dengan chart dan data historis (RAG), lalu melakukan debat Bull vs. Bear untuk memberikan persetujuan akhir.
+- **Perkiraan Probabilistik**: Menggunakan **Monte Carlo Engine** (5,000 simulasi per sinyal) untuk menghitung probabilitas profit (*Win Probability*) dan memvalidasi setiap setup.
+- **Sistem Keputusan Cerdas**: **Gemini 2.5 Pro CIO Agent** bertindak sebagai lapisan validasi akhir, melakukan debat *Bull vs. Bear* dengan dukungan data historis (RAG) untuk memastikan hanya trade terbaik yang dieksekusi.
 - **Eksekusi Otomatis**: Terintegrasi penuh dengan API Binance Futures untuk eksekusi order otomatis, termasuk *dynamic position sizing*, *partial take profit*, dan *breakeven stop loss*.
-- **Manajemen Risiko Komprehensif**: Dilengkapi 13 lapisan pengaman, termasuk *Circuit Breaker*, *News Blackout Filter*, *Spread Protection*, dan *Safe Leverage Calculation*.
+- **Manajemen Risiko Komprehensif**: Dilengkapi 13 lapisan pengaman, termasuk *Circuit Breaker*, *Filter Berita*, *Perlindungan Spread*, dan *Kalkulasi Leverage Aman*.
 - **Sistem Adaptif**: Menganalisis performa trading secara terus-menerus untuk menyesuaikan risiko per pair (**Adaptive Risk**) dan memberi bobot pada strategi yang lebih berhasil (**ε-greedy Weighting**).
-- **Dashboard & Notifikasi Live**: Dilengkapi antarmuka web real-time dan notifikasi Telegram untuk semua aktivitas trading.
+- **Dashboard & Notifikasi Live**: Dilengkapi antarmuka web real-time (HTML/JS, WebSocket) dan notifikasi Telegram untuk semua aktivitas trading.
 
 ---
 
@@ -74,7 +74,7 @@ graph TD
     I --> J{Confidence & Win Prob >= Threshold?};
     J -- Tidak --> G;
     J -- Ya --> K[5. Kirim Sinyal ke Gemini CIO Agent];
-    K --> L[6. AI CIO Debate: Bull vs. Bear];
+    K --> L[6. AI CIO Debate: Bull vs. Bear (dengan RAG)];
     L --> M{Verdict == 'APPROVE'?};
     M -- Tidak --> G;
     M -- Ya --> N[7. Hitung Posisi & Leverage Aman];
@@ -92,7 +92,7 @@ Strategi NERA QUANT adalah *multi-layered trend-following & mean-reversion syste
 1.  **Generasi Sinyal (Signal Generation)**:
     - **Indikator Teknis**: Sistem menggunakan gabungan indikator trend (EMA), momentum (MACD, RSI), dan volatilitas (Bollinger Bands) yang diberi bobot.
     - **Smart Money Concepts (SMC)**: Sinyal diperkuat secara signifikan oleh deteksi *Break of Structure (BOS)*, *Change of Character (CHoCH)*, dan entri pada *Order Block (OB) retest*. Ini adalah inti dari strategi untuk mengidentifikasi sinyal dengan presisi tinggi.
-    - **Signal Score**: Semua faktor di atas digabungkan menjadi satu *Signal Score*. Hanya sinyal dengan skor di atas ambang batas (default: 0.60) yang akan diproses lebih lanjut.
+    - **Signal Score**: Semua faktor digabungkan menjadi satu *Signal Score*. Hanya sinyal dengan skor di atas ambang batas (default: 0.60) yang akan diproses lebih lanjut.
 
 2.  **Validasi Probabilitas (Probabilistic Validation)**:
     - Setiap sinyal yang lolos kemudian diuji oleh **Monte Carlo Engine**. Engine ini menyimulasikan 5,000 kemungkinan pergerakan harga di masa depan berdasarkan volatilitas historis pair tersebut.
@@ -105,13 +105,13 @@ Strategi NERA QUANT adalah *multi-layered trend-following & mean-reversion syste
     - **HTF Gatekeeper**: Sinyal akan **langsung diblokir** jika berlawanan dengan tren pada timeframe yang lebih tinggi (1 Jam). Ini adalah salah satu filter paling penting untuk menghindari *counter-trend trading* yang berisiko.
     - **News Blackout**: Menjelang rilis berita ekonomi berdampak tinggi (FOMC, CPI, dll.), sistem akan berhenti membuka posisi baru untuk menghindari volatilitas ekstrem.
 
-4.  **Persetujuan AI (AI Approval)**:
-    - Sinyal terkuat yang lolos semua filter kemudian diserahkan kepada **Gemini 2.5 Pro CIO Agent**.
-    - AI melakukan **Debat Multi-Analis**:
-        - **Analis Bull**: Memberikan argumen terkuat *untuk* mengambil trade.
-        - **Analis Bear**: Memberikan argumen terkuat *melawan* trade tersebut.
-    - AI menganalisis data sinyal, **chart visual**, dan **data historis dari trade serupa (RAG)**.
-    - Trade hanya akan dieksekusi jika mendapat *verdict* `APPROVE`.
+4.  **🧠 Sistem Keputusan Cerdas (AI CIO Agent)**:
+    - Sinyal terkuat yang lolos semua filter sebelumnya diserahkan kepada **Gemini 2.5 Pro CIO Agent** untuk validasi akhir. Ini bukan sekadar ceklis, melainkan lapisan analisis kualitatif yang mendalam.
+    - **Debat Bull vs. Bear**: AI mensimulasikan dua persona analis:
+        - **Analis Bull**: Memberikan argumen terkuat *untuk* mengambil trade, berdasarkan semua data yang tersedia.
+        - **Analis Bear**: Memberikan argumen terkuat *melawan* trade, mencoba menemukan kelemahan atau risiko tersembunyi.
+    - **Analisis Berbasis RAG (Retrieval-Augmented Generation)**: Untuk memperkuat argumen, AI secara otomatis mengambil data dari trade historis yang memiliki karakteristik serupa (pair, setup, kondisi pasar). Ini memungkinkan AI belajar dari keberhasilan dan kegagalan masa lalu.
+    - **Keputusan Akhir**: AI menimbang kedua sisi argumen dan data historis untuk memberikan keputusan akhir (`APPROVE` atau `REJECT`) beserta ringkasan alasan logisnya. Trade hanya akan dieksekusi jika mendapat *verdict* `APPROVE`.
 
 5.  **Eksekusi & Manajemen (Execution & Management)**:
     - Jika disetujui, **BinanceTrader** menghitung ukuran posisi berdasarkan manajemen risiko (`RISK_PER_TRADE`) dan *leverage* yang aman.
@@ -137,7 +137,7 @@ Strategi NERA QUANT adalah *multi-layered trend-following & mean-reversion syste
   ```bash
   cp config.example.py config.py
   ```
-- Buka `config.py` dan isi dengan kredensial Anda.
+- Buka `config.py` dan isi dengan kredensial Anda (API Key Binance, Telegram, Google AI).
 
 #### 3. Menjalankan Bot
 
@@ -156,16 +156,31 @@ Gunakan skrip helper yang telah disediakan:
   ./stop.sh
   ```
 
-#### 4. Backtesting & Data Historis
+---
 
-- **Download/Update Data Historis (3 Bulan Terakhir):**
-  ```bash
-  ./update_data.sh
-  ```
-- **Menjalankan Backtest (pada data 3 bulan terakhir):**
-  ```bash
-  ./update_backtest.sh
-  ```
+### 🧪 Backtesting & Analisis Kinerja
+
+Backtesting adalah proses krusial untuk menguji dan memvalidasi efektivitas strategi trading menggunakan data historis. Ini memungkinkan kita untuk mengevaluasi kinerja tanpa merisikokan modal sungguhan.
+
+#### Metrik Kinerja Utama
+
+Hasil backtest akan menampilkan beberapa metrik kunci untuk analisis:
+
+- **Total PnL (Profit and Loss)**: Keuntungan atau kerugian bersih total dari semua trade.
+- **Win Rate**: Persentase trade yang profit dari total trade.
+- **Profit Factor**: Rasio antara total keuntungan dari trade yang menang dan total kerugian dari trade yang kalah.
+- **Sharpe Ratio**: Mengukur kinerja yang disesuaikan dengan risiko. Semakin tinggi, semakin baik.
+- **Max Drawdown**: Penurunan maksimum dari puncak ke lembah dalam modal selama periode backtest.
+
+#### Skrip Pendukung
+
+| Skrip                 | Deskripsi                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| `update_data.sh`      | Mengunduh atau memperbarui data historis OHLCV untuk 3 bulan terakhir dari semua pair.    |
+| `update_backtest.sh`  | Menjalankan skrip `backtester.py` pada seluruh data historis yang tersedia.             |
+| `check_data.py`       | Memverifikasi integritas data yang diunduh, memeriksa gap atau data yang rusak.         |
+| `backtester.py`       | Engine inti yang menjalankan logika strategi pada data historis dan menghasilkan laporan. |
+| `monthly_update.sh`   | Skrip utilitas yang dirancang untuk dijalankan via cron job untuk pembaruan data bulanan. |
 
 > ⚠️ **DISCLAIMER**: Bot ini adalah perangkat lunak yang kompleks dan ditujukan untuk tujuan riset dan edukasi. Trading futures memiliki risiko yang sangat tinggi. Selalu lakukan riset Anda sendiri (DYOR).
 
@@ -182,11 +197,11 @@ Each signal is validated by **Gemini 2.5 Pro**, acting as a *Chief Investment Of
 
 - **Hybrid Strategy**: Combines classic technical indicators (EMA, MACD, RSI) with Smart Money Concepts (BOS, CHoCH, Order Blocks, FVG) for high-quality signals.
 - **Probabilistic Forecasting**: Utilizes a **Monte Carlo Engine** (5,000 simulations per signal) to calculate the profit probability (Win Probability) and validate each setup.
-- **AI-Powered Decision Making**: A **Gemini 2.5 Pro CIO Agent** analyzes each signal, complete with charts and historical data (RAG), then conducts a Bull vs. Bear debate for final approval.
+- **Intelligent Decision System**: A **Gemini 2.5 Pro CIO Agent** acts as the final validation layer, conducting a *Bull vs. Bear* debate enriched with historical data (RAG) to ensure only the best trades are executed.
 - **Automated Execution**: Fully integrated with the Binance Futures API for automatic order execution, including dynamic position sizing, partial take profit, and breakeven stop loss.
-- **Comprehensive Risk Management**: Equipped with 13 safety layers, including a *Circuit Breaker*, *News Blackout Filter*, *Spread Protection*, and *Safe Leverage Calculation*.
+- **Comprehensive Risk Management**: Equipped with 13 safety layers, including a *Circuit Breaker*, *News Filter*, *Spread Protection*, and *Safe Leverage Calculation*.
 - **Self-Adapting System**: Continuously analyzes trading performance to adjust risk per pair (**Adaptive Risk**) and assign weights to more successful strategies (**ε-greedy Weighting**).
-- **Live Dashboard & Notifications**: Features a real-time web interface and Telegram notifications for all trading activities.
+- **Live Dashboard & Notifications**: Features a real-time web interface (HTML/JS, WebSocket) and Telegram notifications for all trading activities.
 
 ---
 
@@ -209,7 +224,7 @@ graph TD
     I --> J{Confidence & Win Prob >= Threshold?};
     J -- No --> G;
     J -- Yes --> K[5. Send Signal to Gemini CIO Agent];
-    K --> L[6. AI CIO Debate: Bull vs. Bear];
+    K --> L[6. AI CIO Debate: Bull vs. Bear (with RAG)];
     L --> M{Verdict == 'APPROVE'?};
     M -- No --> G;
     M -- Yes --> N[7. Calculate Position Size & Safe Leverage];
@@ -240,13 +255,13 @@ NERA QUANT's strategy is a multi-layered trend-following & mean-reversion system
     - **HTF Gatekeeper**: A signal is **immediately blocked** if it goes against the trend on a higher timeframe (1-Hour). This is one of the most critical filters to avoid risky counter-trend trades.
     - **News Blackout**: Leading up to high-impact economic news releases (FOMC, CPI, etc.), the system will stop opening new positions to avoid extreme volatility.
 
-4.  **AI Approval**:
-    - The strongest signals that pass all filters are then submitted to the **Gemini 2.5 Pro CIO Agent**.
-    - The AI conducts a **Multi-Analyst Debate**:
-        - The **Bull Analyst** makes the strongest case *for* taking the trade.
-        - The **Bear Analyst** makes the strongest case *against* it.
-    - The AI analyzes the signal data, a **visual chart**, and **historical data from similar trades (RAG)**.
-    - The trade is only executed if it receives an `APPROVE` verdict.
+4.  **🧠 Intelligent Decision System (AI CIO Agent)**:
+    - The strongest signals that pass all previous filters are submitted to the **Gemini 2.5 Pro CIO Agent** for final validation. This is not a simple checklist but a deep, qualitative analysis layer.
+    - **Bull vs. Bear Debate**: The AI simulates two analyst personas:
+        - The **Bull Analyst** makes the strongest case *for* taking the trade, based on all available data.
+        - The **Bear Analyst** makes the strongest case *against* it, trying to find weaknesses or hidden risks.
+    - **RAG-Powered Analysis (Retrieval-Augmented Generation)**: To strengthen its arguments, the AI automatically retrieves data from historical trades with similar characteristics (pair, setup, market conditions). This allows the AI to learn from past successes and failures.
+    - **Final Verdict**: The AI weighs both sides of the debate and the historical data to provide a final verdict (`APPROVE` or `REJECT`) along with a summary of its logical reasoning. A trade is only executed if it receives an `APPROVE` verdict.
 
 5.  **Execution & Management**:
     - If approved, the **BinanceTrader** calculates the position size based on risk management (`RISK_PER_TRADE`) and a safe leverage.
@@ -272,7 +287,7 @@ NERA QUANT's strategy is a multi-layered trend-following & mean-reversion system
   ```bash
   cp config.example.py config.py
   ```
-- Open `config.py` and fill in your credentials.
+- Open `config.py` and fill in your credentials (Binance API Keys, Telegram, Google AI).
 
 #### 3. Running the Bot
 
@@ -291,16 +306,31 @@ Use the provided helper scripts:
   ./stop.sh
   ```
 
-#### 4. Backtesting & Historical Data
+---
 
-- **Download/Update Historical Data (Last 3 Months):**
-  ```bash
-  ./update_data.sh
-  ```
-- **Run Backtest (on the last 3 months of data):**
-  ```bash
-  ./update_backtest.sh
-  ```
+### 🧪 Backtesting & Performance Analysis
+
+Backtesting is a crucial process for testing and validating the effectiveness of a trading strategy using historical data. It allows us to evaluate performance without risking real capital.
+
+#### Key Performance Metrics
+
+The backtest results will display several key metrics for analysis:
+
+- **Total PnL (Profit and Loss)**: The net profit or loss from all trades.
+- **Win Rate**: The percentage of profitable trades out of the total trades.
+- **Profit Factor**: The ratio of the total profit from winning trades to the total loss from losing trades.
+- **Sharpe Ratio**: Measures risk-adjusted performance. The higher, the better.
+- **Max Drawdown**: The maximum decline from a peak to a trough in equity during the backtest period.
+
+#### Supporting Scripts
+
+| Script                | Description                                                                        |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| `update_data.sh`      | Downloads or updates the last 3 months of historical OHLCV data for all pairs.     |
+| `update_backtest.sh`  | Runs the `backtester.py` script on the entire set of available historical data.      |
+| `check_data.py`       | Verifies the integrity of the downloaded data, checking for gaps or corrupt files. |
+| `backtester.py`       | The core engine that runs the strategy logic on historical data and generates reports. |
+| `monthly_update.sh`   | A utility script designed to be run via a cron job for monthly data updates.       |
 
 > ⚠️ **DISCLAIMER**: This bot is a complex piece of software intended for research and educational purposes. Futures trading involves a very high risk of capital loss. Always do your own research (DYOR).
 
